@@ -15,13 +15,13 @@ text = random.randint(key1, (2, 16,), 0, 10000)
 audio = random.uniform(key1, (2, 8, 512))
 
 model = CLAP(
-	text_num_tokens = 10000,
-	text_dim = 512,
-	text_depth = 6,
-	text_heads = 8,
-	audio_dim = 512,
-	audio_depth = 6,
-	audio_heads = 8
+    text_num_tokens = 10000,
+    text_dim = 512,
+    text_depth = 6,
+    text_heads = 8,
+    audio_dim = 512,
+    audio_depth = 6,
+    audio_heads = 8
 )
 
 params = model.init(key2, text, audio)
