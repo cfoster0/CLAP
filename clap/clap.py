@@ -30,9 +30,11 @@ class Attention(nn.Module):
         dim_in, h = x.shape[-1], self.heads
         scale = dim_in ** -0.5
 
+        norm = nn.LayerNorm()
         to_qkv = nn.Dense(features = self.dim_head * h * 3, use_bias = False)
         to_out = nn.Dense(features = dim_in)
 
+        x = norm(x)
         qkv = np.split(to_qkv(x), 3, axis = -1)
         q, k, v = map(lambda t: rearrange(t, 'n (h d) -> h n d', h = h), qkv)
 
@@ -50,9 +52,11 @@ class FeedForward(nn.Module):
     def __call__(self, x):
         dim_in, mult = x.shape[-1], self.mult
 
+        norm = nn.LayerNorm()
         to_intermediate = nn.Dense(features = dim_in * mult)
         to_out = nn.Dense(features = dim_in)
 
+        x = norm(x)
         x = to_intermediate(x)
         x = nn.gelu(x)
         x = to_out(x)
