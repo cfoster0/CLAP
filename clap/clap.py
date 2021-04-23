@@ -1,6 +1,6 @@
 import jax
 from typing import Any, Callable, Sequence, Optional
-from jax import lax, random, numpy as np
+from jax import lax, random, numpy as np, vmap, jit
 
 # einsum and einops
 
@@ -17,6 +17,14 @@ from flax import linen as nn
 
 from jax.config import config
 config.enable_omnistaging() # Linen requires enabling omnistaging
+
+# helpers
+
+def cross_entropy(logprobs, targets):
+    target_class = np.argmax(targets, axis=1)
+    nll = np.take_along_axis(logprobs, np.expand_dims(target_class, axis=1), axis=1)
+    ce = -np.mean(nll)
+    return ce
 
 # main class
 
@@ -92,6 +100,8 @@ class CLAP(nn.Module):
     audio_depth: int
     audio_heads: int
 
+    temp_init: Callable = nn.initializers.zeros
+
     def setup(self):
         self.audio_encoder = Transformer(dim = self.audio_dim, depth = self.audio_depth, heads = self.audio_heads)
         self.text_encoder = Transformer(dim = self.text_dim, depth = self.text_depth, heads = self.text_heads)
@@ -103,6 +113,16 @@ class CLAP(nn.Module):
         to_text_tokens = nn.Embed(num_embeddings = num_tokens, features = text_dim)
         text = to_text_tokens(text)
 
-        enc_text = self.text_encoder(text)
-        enc_audio = self.audio_encoder(audio)
-        return enc_text, enc_audio
+        enc_text = vmap(self.text_encoder)(text)
+        enc_audio = vmap(self.audio_encoder)(audio)
+
+        enc_text = np.mean(enc_text, axis = 1)
+        enc_audio = np.mean(enc_audio, axis = 1)
+
+        enc_text = enc_text / np.linalg.norm(enc_text, axis = -1, keepdims = True)
+        enc_audio = enc_audio / np.linalg.norm(enc_audio, axis = -1, keepdims = True)
+
+        temp = self.param('temperature', self.temp_init, tuple())
+        sim = einsum('i d, j d -> i j', enc_text, enc_audio) * np.exp(temp)
+
+        return sim
