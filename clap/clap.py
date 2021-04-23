@@ -30,14 +30,14 @@ class Attention(nn.Module):
 
     @nn.compact
     def __call__(self, x):
-        inp_dim, h = x.shape[-1], self.heads
-        scale = inp_dim ** -0.5
+        dim_in, h = x.shape[-1], self.heads
+        scale = dim_in ** -0.5
 
         qkv_W = self.param('qkv',
                            self.kernel_init,
-                           (inp_dim, self.dim_head * h * 3))
+                           (dim_in, self.dim_head * h * 3))
 
-        to_out = nn.Dense(features = inp_dim)
+        to_out = nn.Dense(features = dim_in)
 
         qkv = np.split(x @ qkv_W, 3, axis = -1)
         q, k, v = map(lambda t: rearrange(t, 'n (h d) -> h n d', h = h), qkv)
@@ -49,16 +49,32 @@ class Attention(nn.Module):
         out = rearrange(out, 'h n d -> n (h d)')
         return to_out(out)
 
+class FeedForward(nn.Module):
+    mult: int = 4
+
+    @nn.compact
+    def __call__(self, x):
+        dim_in, mult = x.shape[-1], self.mult
+
+        to_intermediate = nn.Dense(features = dim_in * mult)
+        to_out = nn.Dense(features = dim_in)
+
+        x = to_intermediate(x)
+        x = nn.gelu(x)
+        x = to_out(x)
+        return x
+
 class CLAP(nn.Module):
     dim: int
     depth: int
     heads: int
 
     def setup(self):
-        self.self_attns = [Attention(dim = self.dim, heads = self.heads) for _ in range(self.depth)]
+        self.self_attns = [(Attention(dim = self.dim, heads = self.heads), FeedForward()) for _ in range(self.depth)]
 
     @nn.compact
     def __call__(self, x):
-        for attn in self.self_attns:
-            x = attn(x)
+        for attn, ff in self.self_attns:
+            x = attn(x) + x
+            x = ff(x) + x
         return x
