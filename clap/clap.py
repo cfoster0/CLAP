@@ -25,21 +25,15 @@ class Attention(nn.Module):
     heads: int
     dim_head: int = 64
 
-    kernel_init: Callable = nn.initializers.lecun_normal()
-    bias_init: Callable = nn.initializers.zeros
-
     @nn.compact
     def __call__(self, x):
         dim_in, h = x.shape[-1], self.heads
         scale = dim_in ** -0.5
 
-        qkv_W = self.param('qkv',
-                           self.kernel_init,
-                           (dim_in, self.dim_head * h * 3))
-
+        to_qkv = nn.Dense(features = self.dim_head * h * 3, use_bias = False)
         to_out = nn.Dense(features = dim_in)
 
-        qkv = np.split(x @ qkv_W, 3, axis = -1)
+        qkv = np.split(to_qkv(x), 3, axis = -1)
         q, k, v = map(lambda t: rearrange(t, 'n (h d) -> h n d', h = h), qkv)
 
         sim = einsum('h i d, h j d -> h i j', q, k) * scale
