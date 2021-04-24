@@ -39,7 +39,7 @@ def rotate_every_two(x):
     x1 = x[:, :, ::2]
     x2 = x[:, :, 1::2]
 
-    x = jnp.stack((-x2, x1), axis=-1)
+    x = np.stack((-x2, x1), axis=-1)
 
     return rearrange(x, '... d j -> ... (d j)')
 
