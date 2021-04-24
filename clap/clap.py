@@ -56,7 +56,7 @@ class Attention(nn.Module):
     dim_head: int = 64
 
     @nn.compact
-    def __call__(self, x):
+    def __call__(self, x, sincos):
         dim_in, h = x.shape[-1], self.heads
         scale = dim_in ** -0.5
 
@@ -68,9 +68,8 @@ class Attention(nn.Module):
         qkv = np.split(to_qkv(x), 3, axis = -1)
         q, k, v = map(lambda t: rearrange(t, 'i (h d) -> i h d', h = h), qkv)
 
-        sincos = fixed_pos_embedding(q)
-        q = apply_rotary_pos_emb(q, sincos)
-        k = apply_rotary_pos_emb(k, sincos)
+        q[1:] = apply_rotary_pos_emb(q[1:], sincos)
+        k[1:] = apply_rotary_pos_emb(k[1:], sincos)
 
         sim = einsum('i h d, j h d -> i j h', q, k) * scale
         attn = nn.softmax(sim, axis = -2)
@@ -110,13 +109,16 @@ class Transformer(nn.Module):
 
     @nn.compact
     def __call__(self, x):
+        n, h, dh = x.shape[0], self.heads, self.dim_head
         cls_token = self.param('cls', self.cls_init, (1, x.shape[-1]))
         to_norm_out = nn.LayerNorm()
+
+        sincos = fixed_pos_embedding(np.zeros(n, h, dh // 3))
 
         x = np.concatenate((cls_token, x), axis = 0)
 
         for attn, ff in self.layers:
-            x = attn(x) + x
+            x = attn(x, sincos) + x
             x = ff(x) + x
 
         x = to_norm_out(x)
