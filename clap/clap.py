@@ -96,7 +96,7 @@ class Transformer(nn.Module):
         return x
 
 class CLAP(nn.Module):
-    text_num_tokens: int
+    text_vocab: int
     text_dim: int
     text_depth: int
     text_heads: int
@@ -113,9 +113,9 @@ class CLAP(nn.Module):
 
     @nn.compact
     def __call__(self, text, audio, return_loss = True):
-        b, num_tokens, text_dim = text.shape[0], self.text_num_tokens, self.text_dim
+        b, text_vocab, text_dim = text.shape[0], self.text_vocab, self.text_dim
 
-        to_text_tokens = nn.Embed(num_embeddings = num_tokens, features = text_dim)
+        to_text_tokens = nn.Embed(num_embeddings = text_vocab, features = text_dim)
         temp = self.param('temperature', self.temp_init, tuple())
 
         text = to_text_tokens(text)
