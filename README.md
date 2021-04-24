@@ -6,8 +6,8 @@ In due time this repo will be full of lovely things, I hope.
 Feel free to check out the Issues if you're interested in contributing. Leave a note saying what interests you. :)
 
 ```python
+from jax import random
 from clap.clap import CLAP
-from jax import random, vmap
 
 key1, key2 = random.split(random.PRNGKey(0), 2)
 
