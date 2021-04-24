@@ -68,6 +68,10 @@ class Attention(nn.Module):
         qkv = np.split(to_qkv(x), 3, axis = -1)
         q, k, v = map(lambda t: rearrange(t, 'i (h d) -> i h d', h = h), qkv)
 
+        sincos = fixed_pos_embedding(q)
+        q = apply_rotary_pos_emb(q, sincos)
+        k = apply_rotary_pos_emb(k, sincos)
+
         sim = einsum('i h d, j h d -> i j h', q, k) * scale
         attn = nn.softmax(sim, axis = -2)
 
