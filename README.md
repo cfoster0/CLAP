@@ -25,6 +25,9 @@ model = CLAP(
 )
 
 params = model.init(key2, text, audio)
+loss = model.apply(params, text, audio)
 
-sim = model.apply(params, text, audio) # (2, 2)
+# after a lot of training
+
+sim = model.apply(params, text, audio, return_loss = False) # (2, 2)
 ```

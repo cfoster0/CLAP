@@ -5,7 +5,7 @@ from jax import lax, random, numpy as np, vmap, jit
 # einsum and einops
 
 from jax.numpy import einsum
-from einops import rearrange
+from einops import rearrange, repeat
 
 # flax
 
@@ -20,9 +20,9 @@ config.enable_omnistaging() # Linen requires enabling omnistaging
 
 # helpers
 
-def cross_entropy(logprobs, targets):
-    target_class = np.argmax(targets, axis=1)
-    nll = np.take_along_axis(logprobs, np.expand_dims(target_class, axis=1), axis=1)
+def cross_entropy(logits, targets, axis = -1):
+    logprobs = nn.log_softmax(logits, axis = axis)
+    nll = np.take_along_axis(logprobs, np.expand_dims(targets, axis = axis), axis = axis)
     ce = -np.mean(nll)
     return ce
 
@@ -76,12 +76,17 @@ class Transformer(nn.Module):
     heads: int
     dim_head: int = 64
 
+    cls_init: Callable = nn.initializers.lecun_normal()
+
     def setup(self):
         self.layers = [(Attention(dim = self.dim, heads = self.heads, dim_head = self.dim_head), FeedForward()) for _ in range(self.depth)]
 
     @nn.compact
     def __call__(self, x):
+        cls_token = self.param('cls', self.cls_init, (1, x.shape[-1]))
         to_norm_out = nn.LayerNorm()
+
+        x = np.concatenate((cls_token, x), axis = 0)
 
         for attn, ff in self.layers:
             x = attn(x) + x
@@ -107,22 +112,28 @@ class CLAP(nn.Module):
         self.text_encoder = Transformer(dim = self.text_dim, depth = self.text_depth, heads = self.text_heads)
 
     @nn.compact
-    def __call__(self, text, audio):
-        num_tokens, text_dim = self.text_num_tokens, self.text_dim
+    def __call__(self, text, audio, return_loss = True):
+        b, num_tokens, text_dim = text.shape[0], self.text_num_tokens, self.text_dim
 
         to_text_tokens = nn.Embed(num_embeddings = num_tokens, features = text_dim)
+        temp = self.param('temperature', self.temp_init, tuple())
+
         text = to_text_tokens(text)
 
         enc_text = vmap(self.text_encoder)(text)
         enc_audio = vmap(self.audio_encoder)(audio)
 
-        enc_text = np.mean(enc_text, axis = 1)
-        enc_audio = np.mean(enc_audio, axis = 1)
+        enc_text = enc_text[:, 0]
+        enc_audio = enc_audio[:, 0]
 
         enc_text = enc_text / np.linalg.norm(enc_text, axis = -1, keepdims = True)
         enc_audio = enc_audio / np.linalg.norm(enc_audio, axis = -1, keepdims = True)
 
-        temp = self.param('temperature', self.temp_init, tuple())
         sim = einsum('i d, j d -> i j', enc_text, enc_audio) * np.exp(temp)
 
-        return sim
+        if not return_loss:
+            return sim
+
+        labels = np.arange(b)
+        loss = (cross_entropy(sim, labels, axis = 0) + cross_entropy(sim, labels, axis = 1)) / 2
+        return loss
