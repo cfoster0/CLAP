@@ -1,6 +1,7 @@
 import jax
 from typing import Any, Callable, Sequence, Optional
 from jax import lax, random, numpy as np, vmap, jit
+from jax.ops import index, index_update
 
 # einsum and einops
 
@@ -26,6 +27,28 @@ def cross_entropy(logits, targets, axis = -1):
     ce = -np.mean(nll)
     return ce
 
+def fixed_pos_embedding(x, seq_dim=0):
+    dim = x.shape[-1]
+    inv_freq = 1. / (10000 ** (np.arange(0, dim, 2) / dim))
+
+    sinusoid_inp = np.einsum('i , j -> i j', np.arange(x.shape[seq_dim]), inv_freq)
+
+    return np.sin(sinusoid_inp), np.cos(sinusoid_inp)
+
+
+def rotate_every_two(x):
+    x1 = x[:, :, ::2]
+    x2 = x[:, :, 1::2]
+
+    x = np.stack((-x2, x1), axis=-1)
+
+    return rearrange(x, '... d j -> ... (d j)')
+
+
+def apply_rotary_pos_emb(x, sincos):
+    sin, cos = map(lambda t: repeat(t, 'b n -> b (n j)', j=2)[:, None, :], sincos)
+    return (x * cos) + (rotate_every_two(x) * sin)
+
 # main class
 
 class Attention(nn.Module):
@@ -34,7 +57,7 @@ class Attention(nn.Module):
     dim_head: int = 64
 
     @nn.compact
-    def __call__(self, x):
+    def __call__(self, x, sincos):
         dim_in, h = x.shape[-1], self.heads
         scale = dim_in ** -0.5
 
@@ -44,13 +67,17 @@ class Attention(nn.Module):
 
         x = norm(x)
         qkv = np.split(to_qkv(x), 3, axis = -1)
-        q, k, v = map(lambda t: rearrange(t, 'n (h d) -> h n d', h = h), qkv)
+        q, k, v = map(lambda t: rearrange(t, 'i (h d) -> i h d', h = h), qkv)
 
-        sim = einsum('h i d, h j d -> h i j', q, k) * scale
-        attn = nn.softmax(sim, axis = -1)
+        q = index_update(q, index[1:], apply_rotary_pos_emb(q[1:], sincos))
+        k = index_update(k, index[1:], apply_rotary_pos_emb(k[1:], sincos))
 
-        out = einsum('h i j, h j d -> h i d', attn, v)
-        out = rearrange(out, 'h n d -> n (h d)')
+        sim = einsum('i h d, j h d -> i j h', q, k) * scale
+        attn = nn.softmax(sim, axis = -2)
+
+        out = einsum('i j h, j h d -> i h d', attn, v)
+
+        out = rearrange(out, 'i h d -> i (h d)')
         return to_out(out)
 
 class FeedForward(nn.Module):
@@ -83,13 +110,16 @@ class Transformer(nn.Module):
 
     @nn.compact
     def __call__(self, x):
+        n, h, dh = x.shape[0], self.heads, self.dim_head
         cls_token = self.param('cls', self.cls_init, (1, x.shape[-1]))
         to_norm_out = nn.LayerNorm()
+
+        sincos = fixed_pos_embedding(np.zeros(n, h, dh // 3))
 
         x = np.concatenate((cls_token, x), axis = 0)
 
         for attn, ff in self.layers:
-            x = attn(x) + x
+            x = attn(x, sincos) + x
             x = ff(x) + x
 
         x = to_norm_out(x)
