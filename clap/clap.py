@@ -14,6 +14,10 @@ import flax
 from flax.core import freeze, unfreeze
 from flax import linen as nn
 
+# constants
+
+LARGE_NEG_VALUE = -1e6
+
 # config
 
 from jax.config import config
@@ -27,11 +31,10 @@ def cross_entropy(logits, targets, axis = -1):
     ce = -np.mean(nll)
     return ce
 
-def fixed_pos_embedding(x, seq_dim=0):
-    dim = x.shape[-1]
+def fixed_pos_embedding(seq, dim):
     inv_freq = 1. / (10000 ** (np.arange(0, dim, 2) / dim))
 
-    sinusoid_inp = np.einsum('i , j -> i j', np.arange(x.shape[seq_dim]), inv_freq)
+    sinusoid_inp = np.einsum('i , j -> i j', np.arange(seq), inv_freq)
 
     return np.sin(sinusoid_inp), np.cos(sinusoid_inp)
 
@@ -57,7 +60,7 @@ class Attention(nn.Module):
     dim_head: int = 64
 
     @nn.compact
-    def __call__(self, x, sincos):
+    def __call__(self, x, pos_emb, mask):
         dim_in, h = x.shape[-1], self.heads
         scale = dim_in ** -0.5
 
@@ -69,10 +72,15 @@ class Attention(nn.Module):
         qkv = np.split(to_qkv(x), 3, axis = -1)
         q, k, v = map(lambda t: rearrange(t, 'i (h d) -> i h d', h = h), qkv)
 
-        q = index_update(q, index[1:], apply_rotary_pos_emb(q[1:], sincos))
-        k = index_update(k, index[1:], apply_rotary_pos_emb(k[1:], sincos))
+        q = index_update(q, index[1:], apply_rotary_pos_emb(q[1:], pos_emb))
+        k = index_update(k, index[1:], apply_rotary_pos_emb(k[1:], pos_emb))
 
         sim = einsum('i h d, j h d -> i j h', q, k) * scale
+
+        mask = np.pad(mask, (1, 0), constant_values = True)
+        mask = rearrange(mask, 'j -> () j ()')
+        sim = np.where(mask, sim, LARGE_NEG_VALUE)
+
         attn = nn.softmax(sim, axis = -2)
 
         out = einsum('i j h, j h d -> i h d', attn, v)
@@ -109,17 +117,17 @@ class Transformer(nn.Module):
         self.layers = [(Attention(dim = self.dim, heads = self.heads, dim_head = self.dim_head), FeedForward()) for _ in range(self.depth)]
 
     @nn.compact
-    def __call__(self, x):
+    def __call__(self, x, mask):
         n, h, dh = x.shape[0], self.heads, self.dim_head
         cls_token = self.param('cls', self.cls_init, (1, x.shape[-1]))
         to_norm_out = nn.LayerNorm()
 
-        sincos = fixed_pos_embedding(np.zeros(n, h, dh // 3))
+        sincos = fixed_pos_embedding(n, self.dim_head)
 
         x = np.concatenate((cls_token, x), axis = 0)
 
         for attn, ff in self.layers:
-            x = attn(x, sincos) + x
+            x = attn(x, pos_emb = sincos, mask = mask) + x
             x = ff(x) + x
 
         x = to_norm_out(x)
@@ -142,7 +150,7 @@ class CLAP(nn.Module):
         self.text_encoder = Transformer(dim = self.text_dim, depth = self.text_depth, heads = self.text_heads)
 
     @nn.compact
-    def __call__(self, text, audio, return_loss = True):
+    def __call__(self, text, audio, text_mask, audio_mask, return_loss = True):
         b, text_vocab, text_dim = text.shape[0], self.text_vocab, self.text_dim
 
         to_text_tokens = nn.Embed(num_embeddings = text_vocab, features = text_dim)
@@ -150,8 +158,8 @@ class CLAP(nn.Module):
 
         text = to_text_tokens(text)
 
-        enc_text = vmap(self.text_encoder)(text)
-        enc_audio = vmap(self.audio_encoder)(audio)
+        enc_text = vmap(self.text_encoder)(text, mask = text_mask)
+        enc_audio = vmap(self.audio_encoder)(audio, mask = audio_mask)
 
         enc_text = enc_text[:, 0]
         enc_audio = enc_audio[:, 0]
