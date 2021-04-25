@@ -1,6 +1,7 @@
 import jax
 from typing import Any, Callable, Sequence, Optional
 from jax import lax, random, numpy as np, vmap, jit
+from jax.ops import index, index_update
 
 # einsum and einops
 
@@ -68,8 +69,8 @@ class Attention(nn.Module):
         qkv = np.split(to_qkv(x), 3, axis = -1)
         q, k, v = map(lambda t: rearrange(t, 'i (h d) -> i h d', h = h), qkv)
 
-        q[1:] = apply_rotary_pos_emb(q[1:], sincos)
-        k[1:] = apply_rotary_pos_emb(k[1:], sincos)
+        q = index_update(q, index[1:], apply_rotary_pos_emb(q[1:], sincos))
+        k = index_update(k, index[1:], apply_rotary_pos_emb(k[1:], sincos))
 
         sim = einsum('i h d, j h d -> i j h', q, k) * scale
         attn = nn.softmax(sim, axis = -2)
