@@ -16,7 +16,7 @@ from flax import linen as nn
 
 # constants
 
-LARGE_NEG_VALUE = -1e6
+LARGE_NEG_VALUE = -1e10
 
 # config
 
