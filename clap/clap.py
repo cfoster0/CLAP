@@ -83,7 +83,8 @@ class Attention(nn.Module):
 
         if self.causal:
             i, j = sim.shape[:2]
-            tri_mask = np.ones((i, j), dtype = bool)
+            tri_mask = np.ones((i - 1, j - 1), dtype = bool)
+            tri_mask = np.pad(tri_mask, ((1, 0), (1, 0)), constant_values = False)
             causal_mask = np.triu(tri_mask, j - i + 1)
             causal_mask = rearrange(causal_mask, 'i j -> i j ()')
             mask = ~causal_mask * mask
