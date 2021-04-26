@@ -58,6 +58,7 @@ class Attention(nn.Module):
     dim: int
     heads: int
     dim_head: int = 64
+    causal: bool = False
 
     @nn.compact
     def __call__(self, x, pos_emb, mask):
@@ -79,6 +80,14 @@ class Attention(nn.Module):
 
         mask = np.pad(mask, (1, 0), constant_values = True)
         mask = rearrange(mask, 'j -> () j ()')
+
+        if self.causal:
+            i, j = sim.shape[:2]
+            tri_mask = np.ones((i, j), dtype = bool)
+            causal_mask = np.triu(tri_mask, j - i + 1)
+            causal_mask = rearrange(causal_mask, 'i j -> i j ()')
+            mask = ~causal_mask * mask
+
         sim = np.where(mask, sim, LARGE_NEG_VALUE)
 
         attn = nn.softmax(sim, axis = -2)
@@ -110,11 +119,12 @@ class Transformer(nn.Module):
     depth: int
     heads: int
     dim_head: int = 64
+    causal: bool = False
 
     cls_init: Callable = nn.initializers.lecun_normal()
 
     def setup(self):
-        self.layers = [(Attention(dim = self.dim, heads = self.heads, dim_head = self.dim_head), FeedForward()) for _ in range(self.depth)]
+        self.layers = [(Attention(dim = self.dim, heads = self.heads, dim_head = self.dim_head, causal = self.causal), FeedForward()) for _ in range(self.depth)]
 
     @nn.compact
     def __call__(self, x, mask):
@@ -147,7 +157,7 @@ class CLAP(nn.Module):
 
     def setup(self):
         self.audio_encoder = Transformer(dim = self.audio_dim, depth = self.audio_depth, heads = self.audio_heads)
-        self.text_encoder = Transformer(dim = self.text_dim, depth = self.text_depth, heads = self.text_heads)
+        self.text_encoder = Transformer(dim = self.text_dim, depth = self.text_depth, heads = self.text_heads, causal = True)
 
     @nn.compact
     def __call__(self, text, audio, text_mask, audio_mask, return_loss = True):
