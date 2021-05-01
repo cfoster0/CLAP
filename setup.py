@@ -18,7 +18,6 @@ setup(
   install_requires=[
     'einops>=0.3',
     'flax',
-    'glob',
     'jax',
     'jaxlib',
     'lm_dataformat',
