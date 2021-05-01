@@ -1,1 +1,2 @@
-from clap.clap import CLAP
+from clap.models import CLAP
+from clap.datasets import CaptionedAudioDataset, CaptionedAudioMetadataset
