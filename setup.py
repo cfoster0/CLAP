@@ -18,8 +18,11 @@ setup(
   install_requires=[
     'einops>=0.3',
     'flax',
+    'glob',
     'jax',
-    'jaxlib'
+    'jaxlib',
+    'lm_dataformat',
+    'torch',
   ],
   classifiers=[
     'Development Status :: 4 - Beta',
