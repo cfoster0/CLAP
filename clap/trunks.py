@@ -50,6 +50,7 @@ class MixerBlock(nn.Module):
 class MlpMixer(nn.Module):
   """Mixer architecture."""
   patches: Any
+  strides: Any
   num_classes: int
   num_blocks: int
   hidden_dim: int
@@ -59,7 +60,7 @@ class MlpMixer(nn.Module):
   @nn.compact
   def __call__(self, inputs, *):
     x = nn.Conv(self.hidden_dim, self.patches.size,
-                strides=self.patches.size, name='stem')(inputs)
+                strides=self.strides.size, name='stem')(inputs)
     x = einops.rearrange(x, 'h w c -> (h w) c')
     for _ in range(self.num_blocks):
       x = MixerBlock(self.tokens_mlp_dim, self.channels_mlp_dim)(x)
