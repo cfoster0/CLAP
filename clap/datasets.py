@@ -13,7 +13,20 @@ class CaptionedAudioMetadataset(IterableDataset):
         ]
 
     def __iter__(self):
+        def roundrobin(datasets):
+            num_active = len(datasets)
+            nexts = cycle(iter(it).__next__ for it in datasets)
+            while num_active:
+                try:
+                    for next in nexts:
+                        yield next()
+                except StopIteration:
+                    # Remove the iterator we just exhausted from the cycle.
+                    num_active -= 1
+                    nexts = cycle(islice(nexts, num_active))
+        
         iterator = roundrobin(self.datasets)
+
         return iterator
 
 
@@ -94,7 +107,7 @@ def tokenize(text, pad_to=256):
             tokens[i] = int(byte)
         else:
             break
-    return tokens
+    return torch.tensor(tokens)
 
 
 def roundrobin(*iterables):
