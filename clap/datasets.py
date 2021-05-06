@@ -14,6 +14,7 @@ class CaptionedAudioMetadataset(IterableDataset):
 
     def __iter__(self):
         iterator = roundrobin(self.datasets)
+        return iterator
 
 
 class CaptionedAudioDataset(IterableDataset):
@@ -25,10 +26,10 @@ class CaptionedAudioDataset(IterableDataset):
             # read from the files from the path in sorted order, loaded in as
             # tensors, follows the exact same ordering as the LMD-encoded captions.
             self.captions = lmd.Reader(captions_path).stream_data(get_meta=False)
-            self.spectrograms = SpectrogramLazyDataset(spectrogram_path)
+            self.spectrograms = SpectrogramLazyDataset(spectrograms_path)
         else:
             self.captions = lmd.Reader(captions_path).stream_data(get_meta=True)
-            self.spectrograms = SpectrogramDataset(spectrogram_path)
+            self.spectrograms = SpectrogramDataset(spectrograms_path)
 
     def __iter__(self):
         if self.lazy:
