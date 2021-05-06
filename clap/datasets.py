@@ -24,7 +24,7 @@ class CaptionedAudioMetadataset(IterableDataset):
                     # Remove the iterator we just exhausted from the cycle.
                     num_active -= 1
                     nexts = cycle(islice(nexts, num_active))
-        
+
         iterator = roundrobin(self.datasets)
 
         return iterator
