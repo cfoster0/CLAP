@@ -7,7 +7,7 @@ Feel free to check out the Issues if you're interested in contributing. Leave a 
 
 ```python
 from jax import random, numpy as np
-from clap.clap import CLAP
+from clap.models import CLAP
 
 key1, key2 = random.split(random.PRNGKey(0), 2)
 

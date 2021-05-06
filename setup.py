@@ -15,7 +15,14 @@ setup(
         "contrastive learning",
         "audio",
     ],
-    install_requires=["einops>=0.3", "flax", "jax", "jaxlib"],
+    install_requires=[
+        "einops>=0.3",
+        "flax",
+        "jax",
+        "jaxlib",
+        "lm_dataformat",
+        "torch",
+    ],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
