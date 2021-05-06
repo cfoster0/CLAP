@@ -1,3 +1,5 @@
+# Modified from Google's Vision Transformer repo, whose notice is reproduced below.
+#
 # Copyright 2021 Google LLC.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,9 +39,9 @@ class MixerBlock(nn.Module):
   @nn.compact
   def __call__(self, x):
     y = nn.LayerNorm()(x)
-    y = jnp.swapaxes(y, 1, 2)
+    y = jnp.swapaxes(y, 0, 1)
     y = MlpBlock(self.tokens_mlp_dim, name='token_mixing')(y)
-    y = jnp.swapaxes(y, 1, 2)
+    y = jnp.swapaxes(y, 0, 1)
     x = x + y
     y = nn.LayerNorm()(x)
     return x + MlpBlock(self.channels_mlp_dim, name='channel_mixing')(y)
@@ -55,14 +57,13 @@ class MlpMixer(nn.Module):
   channels_mlp_dim: int
 
   @nn.compact
-  def __call__(self, inputs, *, train):
-    del train
+  def __call__(self, inputs, *):
     x = nn.Conv(self.hidden_dim, self.patches.size,
                 strides=self.patches.size, name='stem')(inputs)
-    x = einops.rearrange(x, 'n h w c -> n (h w) c')
+    x = einops.rearrange(x, 'h w c -> (h w) c')
     for _ in range(self.num_blocks):
       x = MixerBlock(self.tokens_mlp_dim, self.channels_mlp_dim)(x)
     x = nn.LayerNorm(name='pre_head_layer_norm')(x)
-    x = jnp.mean(x, axis=1)
+    x = jnp.mean(x, axis=0)
     return nn.Dense(self.num_classes, kernel_init=nn.initializers.zeros,
                     name='head')(x)
