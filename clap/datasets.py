@@ -6,9 +6,9 @@ from torch.utils.data import Dataset, TensorDataset, ConcatDataset, IterableData
 
 
 class CaptionedAudioMetadataset(IterableDataset):
-    def __init__(self, path_pairs):
+    def __init__(self, path_pairs, lazy=False):
         self.datasets = [
-            CaptionedAudioDataset(captions_path, spectrograms_path)
+            CaptionedAudioDataset(captions_path, spectrograms_path, lazy=lazy)
             for (captions_path, spectrograms_path) in path_pairs
         ]
 
@@ -87,7 +87,7 @@ class SpectrogramDatasetShard(Dataset):
 
 def tokenize(text, pad_to=256):
     # Padding token is 0, the null byte
-    tokens = torch.zeros(pad_to, torch.uint8)
+    tokens = torch.zeros(pad_to, dtype=torch.uint8)
     # Truncate to context window size on the right if need be
     for i, byte in enumerate(text.encode("utf-8")):
         if i < pad_to:
