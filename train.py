@@ -86,7 +86,7 @@ def train(
     for _ in range(epochs):
         for text, audio, text_mask, audio_mask in data(100, batch_size, text_vocab, audio_dim, rng_key):
             loss, grads = loss_fn(params, text, audio, text_mask, audio_mask)
-            updates, state = optim.update(grads, optim_state, params)
+            updates, optim_state = optim.update(grads, optim_state, params)
             params = apply_updates(params, updates)
             print(f'loss: {loss}')
 
