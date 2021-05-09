@@ -91,7 +91,7 @@ class SpectrogramDatasetShard(Dataset):
         self.dataset_shard = TensorDataset(torch.load(path))
 
     def __len__(self):
-        # Layout is [examples, channels, frames]
+        # Layout is [examples, frames, channels]
         return len(self.dataset_shard)
 
     def __getitem__(self, idx):
