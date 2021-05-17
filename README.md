@@ -12,6 +12,12 @@ Feel free to check out the Issues if you're interested in contributing. Leave a 
 $ python setup.py install --user
 ```
 
+You'll also need to use the latest Optax (>=0.0.7)
+
+```bash
+$ pip install git+git://github.com/deepmind/optax.git
+```
+
 ## Use
 
 ```python
