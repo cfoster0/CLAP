@@ -2,8 +2,8 @@ import click
 from click_option_group import optgroup
 
 import jax
-from jax import random, numpy as np, value_and_grad, jit
-from optax import chain, clip_by_global_norm, scale_by_adam, scale, apply_updates
+from jax import random, numpy as np, value_and_grad, jit, tree_util
+from optax import chain, clip_by_global_norm, scale_by_adam, scale, apply_updates, add_decayed_weights, masked
 
 from clap.models import CLAP
 
@@ -29,6 +29,7 @@ def data(num_samples, batch_size, text_vocab, audio_dim, rng_key):
 @optgroup.option('--batch_size', default = 16, type = int)
 @optgroup.option('--epochs', default = 20, type = int)
 @optgroup.option('--learning_rate', default = 3e-4, type = float)
+@optgroup.option('--weight_decay', default = 1e-1, type = float)
 @optgroup.option('--seed', default = 0, type = int)
 @optgroup.option('--max_norm', default = 0.5, type = float)
 def train(
@@ -36,6 +37,7 @@ def train(
     batch_size,
     epochs,
     learning_rate,
+    weight_decay,
     seed,
     max_norm,
     text_vocab,
@@ -64,9 +66,12 @@ def train(
 
     # optimizer
 
+    exclude_bias = lambda params: tree_util.tree_map(lambda x: x.ndim != 1, params)
+
     optim = chain(
         clip_by_global_norm(max_norm),
         scale_by_adam(eps=1e-4),
+        add_decayed_weights(weight_decay, exclude_bias),
         scale(-learning_rate)
     )
 
