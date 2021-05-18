@@ -143,7 +143,7 @@ def pair_text_spectrogram_dataset_collate_fn(batch):
             audio = F.pad(audio, (0, 0, audio_pad_len, 0), value = 0.)
             audio_mask = F.pad(audio_mask, (audio_pad_len, 0), value = False)
 
-        if text_pad_len:
+        if text_pad_len > 0:
             text = F.pad(text, (text_pad_len, 0), value = 0.)
             text_mask = F.pad(text_mask, (text_pad_len, 0), value = False)
 
