@@ -147,7 +147,11 @@ class Transformer(nn.Module):
 
     @nn.compact
     def __call__(self, x, mask):
-        n, h, dh = x.shape[0], self.heads, self.dim_head
+        n, d, h, dh, dim = *x.shape, self.heads, self.dim_head, self.dim
+
+        if d != dim:
+            x = nn.Dense(features=dim)(x)
+
         cls_token = self.param("cls", self.cls_init, (1, x.shape[-1]))
         to_norm_out = nn.LayerNorm()
 

@@ -16,11 +16,14 @@ setup(
         "audio",
     ],
     install_requires=[
+        "click",
+        "click-option-group",
         "einops>=0.3",
         "flax",
         "jax",
         "jaxlib",
         "lm_dataformat",
+        "optax",
         "torch",
     ],
     classifiers=[
