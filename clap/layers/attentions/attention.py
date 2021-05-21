@@ -4,7 +4,7 @@ from typing import Optional
 from flax import linen as nn
 from jax import numpy as jnp
 
-from models.layers.attentions import TalkingHeadsBlock
+from . import TalkingHeadsBlock
 
 
 class AttentionBlock(nn.Module):
