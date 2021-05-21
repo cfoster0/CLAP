@@ -25,6 +25,7 @@ setup(
         "lm_dataformat",
         "optax",
         "torch",
+        "torchaudio",
     ],
     classifiers=[
         "Development Status :: 4 - Beta",

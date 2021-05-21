@@ -26,9 +26,9 @@ for clip in voice_clips:
     filename = clip['path']
     text = clip['sentence']
 
-    waveform, sample_rate = torchaudio.load(f"{DATA_DIR}/clips/{filename}", normalization = True)
+    waveform, sample_rate = torchaudio.load(f"{DATA_DIR}/clips/{filename}")
 
-    output = torchaudio.transforms.MelSpectrogram(sample_rate, n_mels = NUM_MEL)(waveform)[0]
+    output = torchaudio.transforms.MelSpectrogram(sample_rate, n_mels = NUM_MEL, f_min=0, f_max=8000)(waveform)[0]
     tokenized = torch.tensor([int(byte) for i, byte in enumerate(text.encode('utf-8'))], dtype = torch.uint8)
 
     save_path = f"{DATA_DIR}/{filename}.pt"
