@@ -197,8 +197,10 @@ class CLAP(nn.Module):
         enc_text = self.text_encoder(text, mask=mask)
         return enc_text
     
-    def encode_audio(self, audio, mask):
-        enc_audio = self.audio_encoder(audio, mask=mask)
+    def encode_audio(self, audio, mask=None):
+        if mask:
+            raise NotImplementedError("Audio masks are not supported currently for all spectrogram trunks.")
+        enc_audio = self.audio_encoder(audio)
         return enc_audio
 
 
@@ -210,8 +212,8 @@ class CLAP(nn.Module):
 
         text = to_text_tokens(text)
 
-        enc_text = vmap(self.encode_text)(text, mask=text_mask)
-        enc_audio = vmap(self.encode_audio)(audio, mask=audio_mask)
+        enc_text = self.encode_text(text, mask=text_mask)
+        enc_audio = self.encode_audio(audio, mask=audio_mask)
 
         enc_text = enc_text / np.linalg.norm(enc_text, axis=-1, keepdims=True)
         enc_audio = enc_audio / np.linalg.norm(enc_audio, axis=-1, keepdims=True)
