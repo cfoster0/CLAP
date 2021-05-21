@@ -164,6 +164,7 @@ class Transformer(nn.Module):
             x = ff(x) + x
 
         x = to_norm_out(x)
+        x = x[0, :]
         return x
 
 
@@ -187,25 +188,35 @@ class CLAP(nn.Module):
             dim=self.text_dim, depth=self.text_depth, heads=self.text_heads, causal=True
         )
 
+        self.text_tokenizer = nn.Embed(num_embeddings=self.text_vocab, features=self.text_dim)
+
+        self.temp = self.param("temperature", self.temp_init, tuple())
+
+
+    def encode_text(self, text, mask):
+        enc_text = self.text_encoder(text, mask=mask)
+        return enc_text
+    
+    def encode_audio(self, audio, mask):
+        enc_audio = self.audio_encoder(audio, mask=mask)
+        return enc_audio
+
+
     @nn.compact
     def __call__(self, text, audio, text_mask, audio_mask, return_loss=True):
         b, text_vocab, text_dim = text.shape[0], self.text_vocab, self.text_dim
 
-        to_text_tokens = nn.Embed(num_embeddings=text_vocab, features=text_dim)
-        temp = self.param("temperature", self.temp_init, tuple())
+        to_text_tokens = self.text_tokenizer
 
         text = to_text_tokens(text)
 
-        enc_text = vmap(self.text_encoder)(text, mask=text_mask)
-        enc_audio = vmap(self.audio_encoder)(audio, mask=audio_mask)
-
-        enc_text = enc_text[:, 0]
-        enc_audio = enc_audio[:, 0]
+        enc_text = vmap(self.encode_text)(text, mask=text_mask)
+        enc_audio = vmap(self.encode_audio)(audio, mask=audio_mask)
 
         enc_text = enc_text / np.linalg.norm(enc_text, axis=-1, keepdims=True)
         enc_audio = enc_audio / np.linalg.norm(enc_audio, axis=-1, keepdims=True)
 
-        sim = einsum("i d, j d -> i j", enc_text, enc_audio) * np.exp(temp)
+        sim = einsum("i d, j d -> i j", enc_text, enc_audio) * np.exp(self.temp)
 
         if not return_loss:
             return sim
