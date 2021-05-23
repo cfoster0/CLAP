@@ -8,7 +8,7 @@ from jax import numpy as jnp
 class FFBlock(nn.Module):
     expand_ratio: float = None
     hidden_ch: int = None
-    dropout_rate: float = 0.
+    dropout_rate: float = 0.0
     activation_fn: Callable = nn.activation.gelu
     dtype: jnp.dtype = jnp.float32
 
@@ -17,8 +17,7 @@ class FFBlock(nn.Module):
         in_ch = inputs.shape[-1]
         if self.expand_ratio is None:
             if self.hidden_ch is None:
-                raise ValueError(
-                    'Must provide one of expand_ratio or hidden_ch')
+                raise ValueError("Must provide one of expand_ratio or hidden_ch")
             hidden_ch = self.hidden_ch
         else:
             hidden_ch = max(1, int(self.expand_ratio * in_ch))
@@ -29,6 +28,5 @@ class FFBlock(nn.Module):
         x = self.activation_fn(x)
         x = nn.Dropout(rate=self.dropout_rate, deterministic=not is_training)(x)
         x = dense(features=in_ch)(x)
-        output = nn.Dropout(rate=self.dropout_rate,
-                            deterministic=not is_training)(x)
+        output = nn.Dropout(rate=self.dropout_rate, deterministic=not is_training)(x)
         return output

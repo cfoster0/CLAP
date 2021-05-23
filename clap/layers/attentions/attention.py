@@ -15,8 +15,8 @@ class AttentionBlock(nn.Module):
     talking_heads: bool = False
     rotary_qk: bool = False
     rotary_v: bool = False
-    attn_dropout_rate: float = 0.
-    out_dropout_rate: float = 0.
+    attn_dropout_rate: float = 0.0
+    out_dropout_rate: float = 0.0
     use_bias: bool = False
     dtype: jnp.dtype = jnp.float32
 
@@ -29,15 +29,17 @@ class AttentionBlock(nn.Module):
         head_ch = self.head_ch or int(in_ch / self.num_heads)
         out_ch = self.out_ch or in_ch
 
-        dense = partial(nn.DenseGeneral,
-                        axis=-1,
-                        features=(self.num_heads, head_ch),
-                        use_bias=self.use_bias,
-                        dtype=self.dtype)
+        dense = partial(
+            nn.DenseGeneral,
+            axis=-1,
+            features=(self.num_heads, head_ch),
+            use_bias=self.use_bias,
+            dtype=self.dtype,
+        )
 
-        query = dense(name='queries')(inputs_q)
-        key = dense(name='keys')(inputs_kv)
-        value = dense(name='values')(inputs_kv)
+        query = dense(name="queries")(inputs_q)
+        key = dense(name="keys")(inputs_kv)
+        value = dense(name="values")(inputs_kv)
 
         if self.rotary_qk:
             query = RotaryPositionalEmbedding()(query)
@@ -47,37 +49,35 @@ class AttentionBlock(nn.Module):
 
         query = query / jnp.sqrt(head_ch)
 
-        attn_weights = jnp.einsum('... q h d, ... k h d -> ... h q k', query,
-                                  key)
+        attn_weights = jnp.einsum("... q h d, ... k h d -> ... h q k", query, key)
 
         if self.talking_heads:
-            attn_weights = TalkingHeadsBlock(
-                num_heads=self.num_heads)(attn_weights)
+            attn_weights = TalkingHeadsBlock(num_heads=self.num_heads)(attn_weights)
 
         attn_weights = nn.softmax(attn_weights)
 
         if self.talking_heads:
-            attn_weights = TalkingHeadsBlock(
-                num_heads=self.num_heads)(attn_weights)
+            attn_weights = TalkingHeadsBlock(num_heads=self.num_heads)(attn_weights)
 
         attn_weights = nn.Dropout(rate=self.attn_dropout_rate)(
-            attn_weights, deterministic=not is_training)
+            attn_weights, deterministic=not is_training
+        )
 
-        attn_scores = jnp.einsum('... h q k, ... k h d -> ... q h d',
-                                 attn_weights, value)
+        attn_scores = jnp.einsum(
+            "... h q k, ... k h d -> ... q h d", attn_weights, value
+        )
 
-        output = nn.DenseGeneral(features=out_ch,
-                                 axis=(-2, -1),
-                                 use_bias=self.use_bias,
-                                 dtype=self.dtype)(attn_scores)
+        output = nn.DenseGeneral(
+            features=out_ch, axis=(-2, -1), use_bias=self.use_bias, dtype=self.dtype
+        )(attn_scores)
 
         output = nn.Dropout(rate=self.out_dropout_rate)(
-            output, deterministic=not is_training)
+            output, deterministic=not is_training
+        )
         return output
 
 
 class SelfAttentionBlock(AttentionBlock):
-
     @nn.compact
     def __call__(self, inputs, is_training: bool):
         return super().__call__(inputs, inputs, is_training=is_training)

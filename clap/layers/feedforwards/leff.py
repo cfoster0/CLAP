@@ -22,37 +22,38 @@ class LeFFBlock(nn.Module):
         _, l, in_ch = tokens.shape
         if self.expand_ratio is None:
             if self.hidden_ch is None:
-                raise ValueError(
-                    'Must provide one of expand_ratio or hidden_ch')
+                raise ValueError("Must provide one of expand_ratio or hidden_ch")
             hidden_ch = self.hidden_ch
         else:
             hidden_ch = max(1, int(self.expand_ratio * in_ch))
 
         dense = partial(nn.Dense, use_bias=True, dtype=self.dtype)
 
-        batch_norm = partial(nn.BatchNorm,
-                             use_running_average=not is_training,
-                             momentum=self.bn_momentum,
-                             epsilon=self.bn_epsilon,
-                             dtype=self.dtype)
+        batch_norm = partial(
+            nn.BatchNorm,
+            use_running_average=not is_training,
+            momentum=self.bn_momentum,
+            epsilon=self.bn_epsilon,
+            dtype=self.dtype,
+        )
 
         x = dense(features=hidden_ch)(tokens)
         x = batch_norm()(x)
         x = self.activation_fn(x)
 
         spatial_ch = int(jnp.sqrt(l))
-        x = rearrange(x, 'b (h w) c -> b h w c', h=spatial_ch, w=spatial_ch)
+        x = rearrange(x, "b (h w) c -> b h w c", h=spatial_ch, w=spatial_ch)
 
         x = nn.Conv(
             features=hidden_ch,
             kernel_size=(self.kernel_size, self.kernel_size),
-            padding='SAME',
+            padding="SAME",
             dtype=self.dtype,
         )(x)
         x = batch_norm()(x)
         x = self.activation_fn(x)
 
-        x = rearrange(x, 'b h w c -> b (h w) c')
+        x = rearrange(x, "b h w c -> b (h w) c")
 
         x = dense(features=in_ch)(x)
         x = batch_norm()(x)

@@ -10,14 +10,19 @@ class StochasticDepthBlock(nn.Module):
     @nn.compact
     def __call__(self, inputs, is_training: bool):
 
-        if not is_training or self.drop_rate == 0.:
+        if not is_training or self.drop_rate == 0.0:
             return inputs
 
-        keep_prob = 1. - self.drop_rate
-        rng = self.make_rng('stochastic_depth')
+        keep_prob = 1.0 - self.drop_rate
+        rng = self.make_rng("stochastic_depth")
 
         b = inputs.shape[0]
-        shape = [b, ] + ([1, ] * (inputs.ndim - 1))
+        shape = [b,] + (
+            [
+                1,
+            ]
+            * (inputs.ndim - 1)
+        )
         random_tensor = random.uniform(rng, shape, dtype=inputs.dtype)
         binary_tensor = jnp.floor(keep_prob + random_tensor)
 
