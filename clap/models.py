@@ -57,22 +57,25 @@ class CLAP(nn.Module):
 
         self.text_encoder = create_trunk('txt_b', output_dim=self.projection_dim)
 
-        self.text_tokenizer = nn.Embed(num_embeddings=self.text_vocab, features=self.text_dim)
+        self.text_tokenizer = nn.Embed(
+            num_embeddings=self.text_vocab, features=self.text_dim
+        )
 
         self.temp = self.param("temperature", self.temp_init, tuple())
-
 
     def encode_text(self, text, mask, is_training):
         # Ignore mask, for now.
         enc_text = self.text_encoder(text, is_training=is_training)
         return enc_text
-    
+
     def encode_audio(self, audio, mask, is_training):
         # Ignore mask, for now.
         enc_audio = self.audio_encoder(audio, is_training=is_training)
         return enc_audio
 
-    def __call__(self, text, audio, text_mask, audio_mask, return_loss=True, is_training=False):
+    def __call__(
+        self, text, audio, text_mask, audio_mask, return_loss=True, is_training=False
+    ):
         b = text.shape[0]
 
         to_text_tokens = self.text_tokenizer

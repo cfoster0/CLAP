@@ -3,9 +3,9 @@ from jax import numpy as jnp
 from . import Transformer, ViT, TNT, CaiT, MLPMixer
 
 
-def create_trunk(model_name: str,
-                 output_dim: int = 1000,
-                 dtype: jnp.dtype = jnp.float32):
+def create_trunk(
+    model_name: str, output_dim: int = 1000, dtype: jnp.dtype = jnp.float32
+):
 
     if model_name == 'txt_b':
         return Transformer(output_dim=output_dim,
@@ -191,4 +191,4 @@ def create_trunk(model_name: str,
                         embed_dim=1024,
                         patch_shape=(16, 16))
     else:
-        raise RuntimeError('Model not found.')
+        raise RuntimeError("Model not found.")

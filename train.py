@@ -3,14 +3,26 @@ from click_option_group import optgroup
 
 import jax
 from jax import random, numpy as np, value_and_grad, jit, tree_util
-from optax import chain, clip_by_global_norm, scale_by_adam, scale, apply_updates, add_decayed_weights, masked
+from optax import (
+    chain,
+    clip_by_global_norm,
+    scale_by_adam,
+    scale,
+    apply_updates,
+    add_decayed_weights,
+    masked,
+)
 
 from clap.models import CLAP
 
 # data
 
 from torch.utils.data import DataLoader
-from clap.datasets import pair_text_spectrogram_dataset_collate_fn, PairTextSpectrogramDataset
+from clap.datasets import (
+    pair_text_spectrogram_dataset_collate_fn,
+    PairTextSpectrogramDataset,
+)
+
 
 @click.command()
 @optgroup.group('Model settings')
@@ -55,9 +67,15 @@ def train(
     # data
 
     dataset = PairTextSpectrogramDataset(data_folder)
-    dl = DataLoader(dataset, batch_size = batch_size, collate_fn = pair_text_spectrogram_dataset_collate_fn, drop_last = True, shuffle = True)
+    dl = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        collate_fn=pair_text_spectrogram_dataset_collate_fn,
+        drop_last=True,
+        shuffle=True,
+    )
 
-    # model 
+    # model
 
     model = CLAP(
         text_vocab = text_vocab,
@@ -78,7 +96,7 @@ def train(
         clip_by_global_norm(max_norm),
         scale_by_adam(eps=1e-4),
         add_decayed_weights(weight_decay, exclude_bias),
-        scale(-learning_rate)
+        scale(-learning_rate),
     )
 
     # init
@@ -102,9 +120,10 @@ def train(
             loss, grads = loss_fn(params, text, audio, text_mask, audio_mask)
             updates, optim_state = optim.update(grads, optim_state, params)
             params = apply_updates(params, updates)
-            print(f'loss: {loss}')
+            print(f"loss: {loss}")
 
     # finished
+
 
 if __name__ == "__main__":
     train()
