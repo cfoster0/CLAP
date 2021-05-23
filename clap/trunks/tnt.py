@@ -22,7 +22,7 @@ class PixelEmbedBlock(nn.Module):
         x = rearrange(inputs,
                       'b (h p1) (w p2) c -> (b h w) p1 p2 c',
                       p1=self.patch_shape[0],
-                      p2=self.patch_shape[0])
+                      p2=self.patch_shape[1])
         x = rearrange(x,
                       'n (p1 t1) (p2 t2) c -> n (p1 p2) (c t1 t2)',
                       t1=self.transformed_patch_shape[0],

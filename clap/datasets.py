@@ -4,6 +4,7 @@ from pathlib import Path
 
 import lm_dataformat as lmd
 from itertools import cycle, islice, chain
+from einops import rearrange
 
 import torch.nn.functional as F
 from torch.utils.data import Dataset, TensorDataset, ConcatDataset, IterableDataset
@@ -129,8 +130,10 @@ class PairTextSpectrogramDataset(Dataset):
 def pair_text_spectrogram_dataset_collate_fn(batch):
     audios = [el[0] for el in batch]
     texts = [el[2] for el in batch]
-    max_audio_len = max([audio.shape[0] for audio in audios])
-    max_text_len = max([text.shape[0] for text in texts])
+    #max_audio_len = max([audio.shape[0] for audio in audios]) # Should probably pad to a fixed length
+    max_audio_len = 2048
+    #max_text_len = max([text.shape[0] for text in texts]) # Should probably pad to a fixed length
+    max_text_len = 256
 
     padded_batch = []
     for audio, audio_mask, text, text_mask in batch:
@@ -146,6 +149,9 @@ def pair_text_spectrogram_dataset_collate_fn(batch):
         if text_pad_len > 0:
             text = F.pad(text, (text_pad_len, 0), value = 0.)
             text_mask = F.pad(text_mask, (text_pad_len, 0), value = False)
+        
+        # Add trailing dimension of 1, since mono audio
+        audio = rearrange(audio, "t c -> t c ()")
 
         padded_batch.append((audio, audio_mask, text, text_mask))
 

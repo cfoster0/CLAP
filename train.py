@@ -21,6 +21,7 @@ from clap.datasets import pair_text_spectrogram_dataset_collate_fn, PairTextSpec
 @optgroup.option('--audio_dim', default = 512, type = int)
 @optgroup.option('--audio_depth', default = 1, type = int)
 @optgroup.option('--audio_heads', default = 8, type = int)
+@optgroup.option('--projection_dim', default = 512, type = int)
 @optgroup.group('Training settings')
 @optgroup.option('--data_folder', default = './data', type = str)
 @optgroup.option('--batch_size', default = 16, type = int)
@@ -44,7 +45,8 @@ def train(
     text_heads,
     audio_dim,
     audio_depth,
-    audio_heads
+    audio_heads,
+    projection_dim,
 ):
     # rng
 
@@ -64,7 +66,8 @@ def train(
         text_heads = text_heads,
         audio_dim = audio_dim,
         audio_depth = audio_depth,
-        audio_heads = audio_heads
+        audio_heads = audio_heads,
+        projection_dim = projection_dim,
     )
 
     # optimizer
@@ -90,13 +93,13 @@ def train(
     @jit
     @value_and_grad
     def loss_fn(params, text, audio, text_mask, audio_mask):
-        return model.apply(params, text, audio, text_mask, audio_mask)
+        return model.apply(params, text, audio, text_mask, audio_mask, return_loss=True, is_training=True)
 
     # train loop
 
     for _ in range(epochs):
         for audio, audio_mask, text, text_mask in dl:
-            loss, grads = loss_fn(params, text, audio, text_mask, audio_mask, is_training=True)
+            loss, grads = loss_fn(params, text, audio, text_mask, audio_mask)
             updates, optim_state = optim.update(grads, optim_state, params)
             params = apply_updates(params, updates)
             print(f'loss: {loss}')

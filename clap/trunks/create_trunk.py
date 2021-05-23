@@ -14,6 +14,16 @@ def create_trunk(model_name: str,
                    embed_dim=768,
                    rotary_qk=True,
                    dtype=dtype)    
+    elif model_name == 'spec_b':
+        return TNT(output_dim=output_dim,
+                   num_layers=12,
+                   inner_num_heads=4,
+                   outer_num_heads=6,
+                   inner_embed_dim=24,
+                   outer_embed_dim=384,
+                   patch_shape=(2, 80),
+                   transformed_patch_shape=(1, 80),
+                   rotary_qk=True)
     elif model_name == 'vit_b_patch32':
         return ViT(output_dim=output_dim,
                    num_layers=12,
