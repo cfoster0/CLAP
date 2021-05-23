@@ -57,7 +57,7 @@ class Encoder(nn.Module):
             x = AddAbsPosEmbed()(inputs)
         else:
             x = inputs
-        
+
         x = nn.Dropout(rate=self.dropout_rate)(x, deterministic=not is_training)
 
         for _ in range(self.num_layers):

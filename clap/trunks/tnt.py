@@ -19,17 +19,19 @@ class PixelEmbedBlock(nn.Module):
         assert self.patch_shape[0] % self.transformed_patch_shape[0] == 0
         assert self.patch_shape[1] % self.transformed_patch_shape[1] == 0
 
-        x = rearrange(inputs,
-                      'b (h p1) (w p2) c -> (b h w) p1 p2 c',
-                      p1=self.patch_shape[0],
-                      p2=self.patch_shape[1])
-        x = rearrange(x,
-                      'n (p1 t1) (p2 t2) c -> n (p1 p2) (c t1 t2)',
-                      t1=self.transformed_patch_shape[0],
-                      t2=self.transformed_patch_shape[1])
-        output = nn.Dense(self.embed_dim,
-                          use_bias=self.use_bias,
-                          dtype=self.dtype)(x)
+        x = rearrange(
+            inputs,
+            "b (h p1) (w p2) c -> (b h w) p1 p2 c",
+            p1=self.patch_shape[0],
+            p2=self.patch_shape[1],
+        )
+        x = rearrange(
+            x,
+            "n (p1 t1) (p2 t2) c -> n (p1 p2) (c t1 t2)",
+            t1=self.transformed_patch_shape[0],
+            t2=self.transformed_patch_shape[1],
+        )
+        output = nn.Dense(self.embed_dim, use_bias=self.use_bias, dtype=self.dtype)(x)
         return output
 
 

@@ -53,9 +53,9 @@ class CLAP(nn.Module):
     temp_init: Callable = nn.initializers.zeros
 
     def setup(self):
-        self.audio_encoder = create_trunk('spec_b', output_dim=self.projection_dim)
+        self.audio_encoder = create_trunk("spec_b", output_dim=self.projection_dim)
 
-        self.text_encoder = create_trunk('txt_b', output_dim=self.projection_dim)
+        self.text_encoder = create_trunk("txt_b", output_dim=self.projection_dim)
 
         self.text_tokenizer = nn.Embed(
             num_embeddings=self.text_vocab, features=self.text_dim
