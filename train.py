@@ -25,23 +25,23 @@ from clap.datasets import (
 
 
 @click.command()
-@optgroup.group('Model settings')
-@optgroup.option('--text_vocab', default = 256, type = int)
-@optgroup.option('--text_dim', default = 768, type = int)
-@optgroup.option('--text_depth', default = 1, type = int)
-@optgroup.option('--text_heads', default = 8, type = int)
-@optgroup.option('--audio_dim', default = 512, type = int)
-@optgroup.option('--audio_depth', default = 1, type = int)
-@optgroup.option('--audio_heads', default = 8, type = int)
-@optgroup.option('--projection_dim', default = 512, type = int)
-@optgroup.group('Training settings')
-@optgroup.option('--data_folder', default = './data', type = str)
-@optgroup.option('--batch_size', default = 16, type = int)
-@optgroup.option('--epochs', default = 100, type = int)
-@optgroup.option('--learning_rate', default = 3e-4, type = float)
-@optgroup.option('--weight_decay', default = 1e-1, type = float)
-@optgroup.option('--seed', default = 0, type = int)
-@optgroup.option('--max_norm', default = 0.5, type = float)
+@optgroup.group("Model settings")
+@optgroup.option("--text_vocab", default=256, type=int)
+@optgroup.option("--text_dim", default=768, type=int)
+@optgroup.option("--text_depth", default=1, type=int)
+@optgroup.option("--text_heads", default=8, type=int)
+@optgroup.option("--audio_dim", default=512, type=int)
+@optgroup.option("--audio_depth", default=1, type=int)
+@optgroup.option("--audio_heads", default=8, type=int)
+@optgroup.option("--projection_dim", default=512, type=int)
+@optgroup.group("Training settings")
+@optgroup.option("--data_folder", default="./data", type=str)
+@optgroup.option("--batch_size", default=16, type=int)
+@optgroup.option("--epochs", default=100, type=int)
+@optgroup.option("--learning_rate", default=3e-4, type=float)
+@optgroup.option("--weight_decay", default=1e-1, type=float)
+@optgroup.option("--seed", default=0, type=int)
+@optgroup.option("--max_norm", default=0.5, type=float)
 def train(
     *,
     data_folder,
@@ -78,14 +78,14 @@ def train(
     # model
 
     model = CLAP(
-        text_vocab = text_vocab,
-        text_dim = text_dim,
-        text_depth = text_depth,
-        text_heads = text_heads,
-        audio_dim = audio_dim,
-        audio_depth = audio_depth,
-        audio_heads = audio_heads,
-        projection_dim = projection_dim,
+        text_vocab=text_vocab,
+        text_dim=text_dim,
+        text_depth=text_depth,
+        text_heads=text_heads,
+        audio_dim=audio_dim,
+        audio_depth=audio_depth,
+        audio_heads=audio_heads,
+        projection_dim=projection_dim,
     )
 
     # optimizer
@@ -111,7 +111,15 @@ def train(
     @jit
     @value_and_grad
     def loss_fn(params, text, audio, text_mask, audio_mask):
-        return model.apply(params, text, audio, text_mask, audio_mask, return_loss=True, is_training=True)
+        return model.apply(
+            params,
+            text,
+            audio,
+            text_mask,
+            audio_mask,
+            return_loss=True,
+            is_training=True,
+        )
 
     # train loop
 

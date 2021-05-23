@@ -131,9 +131,9 @@ class PairTextSpectrogramDataset(Dataset):
 def pair_text_spectrogram_dataset_collate_fn(batch):
     audios = [el[0] for el in batch]
     texts = [el[2] for el in batch]
-    #max_audio_len = max([audio.shape[0] for audio in audios]) # Should probably pad to a fixed length
+    # max_audio_len = max([audio.shape[0] for audio in audios]) # Should probably pad to a fixed length
     max_audio_len = 2048
-    #max_text_len = max([text.shape[0] for text in texts]) # Should probably pad to a fixed length
+    # max_text_len = max([text.shape[0] for text in texts]) # Should probably pad to a fixed length
     max_text_len = 256
 
     padded_batch = []
@@ -148,9 +148,9 @@ def pair_text_spectrogram_dataset_collate_fn(batch):
             audio_mask = F.pad(audio_mask, (audio_pad_len, 0), value=False)
 
         if text_pad_len > 0:
-            text = F.pad(text, (text_pad_len, 0), value = 0.)
-            text_mask = F.pad(text_mask, (text_pad_len, 0), value = False)
-        
+            text = F.pad(text, (text_pad_len, 0), value=0.0)
+            text_mask = F.pad(text_mask, (text_pad_len, 0), value=False)
+
         # Add trailing dimension of 1, since mono audio
         audio = rearrange(audio, "t c -> t c ()")
 
