@@ -32,7 +32,7 @@ class MixerBlock(nn.Module):
 
 
 class MLPMixer(nn.Module):
-    num_classes: int
+    output_dim: int
     num_layers: int
     embed_dim: int
     patch_shape: Tuple[int]
@@ -56,5 +56,5 @@ class MLPMixer(nn.Module):
 
         x = nn.LayerNorm(dtype=self.dtype)(x)
         x = jnp.mean(x, axis=1)
-        output = nn.Dense(features=self.num_classes, dtype=self.dtype)(x)
+        output = nn.Dense(features=self.output_dim, dtype=self.dtype)(x)
         return output

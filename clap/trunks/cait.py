@@ -23,6 +23,8 @@ class EncoderBlock(nn.Module):
     attn_dropout_rate: float = 0.
     dropout_rate: float = 0.
     activation_fn: Callable = nn.activation.gelu
+    rotary_qk: bool = False
+    rotary_v: bool = False
     dtype: jnp.dtype = jnp.float32
 
     @nn.compact
@@ -32,6 +34,8 @@ class EncoderBlock(nn.Module):
                                talking_heads=True,
                                attn_dropout_rate=self.attn_dropout_rate,
                                out_dropout_rate=self.dropout_rate,
+                               rotary_qk=self.rotary_qk,
+                               rotary_v=self.rotary_v,
                                dtype=self.dtype)(x, is_training=is_training)
         x = LayerScaleBlock(eps=self.layerscale_eps,
                             dtype=self.dtype)(x, is_training=is_training)
@@ -62,6 +66,8 @@ class Encoder(nn.Module):
     attn_dropout_rate: float = 0.
     dropout_rate: float = 0.
     activation_fn: Callable = nn.activation.gelu
+    rotary_qk: bool = False
+    rotary_v: bool = False
     dtype: jnp.dtype = jnp.float32
 
     @nn.compact
@@ -77,6 +83,8 @@ class Encoder(nn.Module):
                              stoch_depth_rate=self.stoch_depth_rate,
                              layerscale_eps=self.layerscale_eps,
                              activation_fn=self.activation_fn,
+                             rotary_qk=self.rotary_qk,
+                             rotary_v=self.rotary_v,
                              dtype=self.dtype)(x, is_training=is_training)
 
         output = x
@@ -91,6 +99,8 @@ class CAEncoderBlock(nn.Module):
     attn_dropout_rate: float = 0.
     dropout_rate: float = 0.
     activation_fn: Callable = nn.activation.gelu
+    rotary_qk: bool = False
+    rotary_v: bool = False
     dtype: jnp.dtype = jnp.float32
 
     @nn.compact
@@ -123,7 +133,7 @@ class CAEncoderBlock(nn.Module):
 
 
 class CaiT(nn.Module):
-    num_classes: int
+    output_dim: int
     num_layers: int
     num_layers_token_only: int
     num_heads: int
@@ -135,6 +145,8 @@ class CaiT(nn.Module):
     attn_dropout_rate: float = 0.
     dropout_rate: float = 0.
     activation_fn: Callable = nn.activation.gelu
+    rotary_qk: bool = False
+    rotary_v: bool = False
     dtype: jnp.dtype = jnp.float32
 
     @nn.compact
@@ -151,6 +163,8 @@ class CaiT(nn.Module):
                     dropout_rate=self.dropout_rate,
                     stoch_depth_rate=self.stoch_depth_rate,
                     layerscale_eps=self.layerscale_eps,
+                    rotary_qk=self.rotary_qk,
+                    rotary_v=self.rotary_v,
                     activation_fn=self.activation_fn)(x,
                                                       is_training=is_training)
 
@@ -167,6 +181,8 @@ class CaiT(nn.Module):
                                        stoch_depth_rate=self.stoch_depth_rate,
                                        layerscale_eps=self.layerscale_eps,
                                        activation_fn=self.activation_fn,
+                                       rotary_qk=self.rotary_qk,
+                                       rotary_v=self.rotary_v,
                                        dtype=self.dtype)(
                                            x,
                                            cls_token,
@@ -176,7 +192,7 @@ class CaiT(nn.Module):
         x = nn.LayerNorm(dtype=self.dtype)(x)
 
         cls_token = x[:, 0]
-        output = nn.Dense(features=self.num_classes,
+        output = nn.Dense(features=self.output_dim,
                           use_bias=True,
                           dtype=self.dtype,
                           kernel_init=nn.initializers.zeros)(cls_token)

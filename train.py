@@ -15,7 +15,7 @@ from clap.datasets import pair_text_spectrogram_dataset_collate_fn, PairTextSpec
 @click.command()
 @optgroup.group('Model settings')
 @optgroup.option('--text_vocab', default = 256, type = int)
-@optgroup.option('--text_dim', default = 512, type = int)
+@optgroup.option('--text_dim', default = 768, type = int)
 @optgroup.option('--text_depth', default = 1, type = int)
 @optgroup.option('--text_heads', default = 8, type = int)
 @optgroup.option('--audio_dim', default = 512, type = int)
@@ -96,7 +96,7 @@ def train(
 
     for _ in range(epochs):
         for audio, audio_mask, text, text_mask in dl:
-            loss, grads = loss_fn(params, text, audio, text_mask, audio_mask)
+            loss, grads = loss_fn(params, text, audio, text_mask, audio_mask, is_training=True)
             updates, optim_state = optim.update(grads, optim_state, params)
             params = apply_updates(params, updates)
             print(f'loss: {loss}')

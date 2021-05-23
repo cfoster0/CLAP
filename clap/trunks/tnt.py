@@ -58,6 +58,8 @@ class EncoderBlock(nn.Module):
     attn_dropout_rate: float = 0.
     dropout_rate: float = 0.
     activation_fn: Callable = nn.activation.gelu
+    rotary_qk: bool = False
+    rotary_v: bool = False
     dtype: jnp.dtype = jnp.float32
 
     @nn.compact
@@ -66,6 +68,8 @@ class EncoderBlock(nn.Module):
         inner_x = SelfAttentionBlock(num_heads=self.inner_num_heads,
                                      attn_dropout_rate=self.attn_dropout_rate,
                                      out_dropout_rate=self.dropout_rate,
+                                     rotary_qk=self.rotary_qk,
+                                     rotary_v=self.rotary_v,
                                      dtype=self.dtype)(inner_x,
                                                        is_training=is_training)
         inner_x = inner_x + pixel_inputs
@@ -81,6 +85,8 @@ class EncoderBlock(nn.Module):
         outer_x = SelfAttentionBlock(num_heads=self.outer_num_heads,
                                      attn_dropout_rate=self.attn_dropout_rate,
                                      out_dropout_rate=self.dropout_rate,
+                                     rotary_qk=self.rotary_qk,
+                                     rotary_v=self.rotary_v,
                                      dtype=self.dtype)(outer_x,
                                                        is_training=is_training)
         outer_x = outer_x + patch_inputs
@@ -102,6 +108,8 @@ class Encoder(nn.Module):
     attn_dropout_rate: float = 0.
     dropout_rate: float = 0.
     activation_fn: Callable = nn.activation.gelu
+    rotary_qk: bool = False
+    rotary_v: bool = False
     dtype: jnp.dtype = jnp.float32
 
     @nn.compact
@@ -113,6 +121,8 @@ class Encoder(nn.Module):
                 attn_dropout_rate=self.attn_dropout_rate,
                 dropout_rate=self.dropout_rate,
                 activation_fn=self.activation_fn,
+                rotary_qk=self.rotary_qk,
+                rotary_v=self.rotary_v,
                 dtype=self.dtype)(patch_embeddings,
                                   pixel_embeddings,
                                   is_training=is_training)
@@ -122,19 +132,21 @@ class Encoder(nn.Module):
 
 
 class TNT(nn.Module):
-    num_classes: int
+    output_dim: int
     num_layers: int
     inner_num_heads: int
     outer_num_heads: int
     inner_embed_dim: int
     outer_embed_dim: int
-    patch_shape: Tuple[int] = (16, 16)
-    transformed_patch_shape: Tuple[int] = (4, 4)
+    patch_shape: Tuple[int]
+    transformed_patch_shape: Tuple[int]
     inner_expand_ratio: float = 4
     outer_expand_ratio: float = 4
     attn_dropout_rate: float = 0.
     dropout_rate: float = 0.
     activation_fn: Callable = nn.activation.gelu
+    rotary_qk: bool = False
+    rotary_v: bool = False
     dtype: jnp.dtype = jnp.float32
 
     @nn.compact
@@ -157,8 +169,11 @@ class TNT(nn.Module):
         patch_embeddings = jnp.concatenate([cls_token, patch_embeddings],
                                            axis=1)
 
-        pixel_embeddings = AddAbsPosEmbed()(pixel_embeddings)
-        patch_embeddings = AddAbsPosEmbed()(patch_embeddings)
+        if not self.rotary_qk and not self.rotary_v:
+            pixel_embeddings = AddAbsPosEmbed()(pixel_embeddings)
+            patch_embeddings = AddAbsPosEmbed()(patch_embeddings)
+        else:
+            pass
 
         patch_embeddings = nn.Dropout(rate=self.dropout_rate)(
             patch_embeddings, deterministic=not is_training)
@@ -169,13 +184,15 @@ class TNT(nn.Module):
                                    attn_dropout_rate=self.attn_dropout_rate,
                                    dropout_rate=self.dropout_rate,
                                    activation_fn=self.activation_fn,
+                                   rotary_qk=self.rotary_qk,
+                                   rotary_v=self.rotary_v,
                                    dtype=self.dtype)(patch_embeddings,
                                                      pixel_embeddings,
                                                      is_training=is_training)
 
         cls_token = patch_embeddings[:, 0]
         output = nn.Dense(
-            features=self.num_classes,
+            features=self.output_dim,
             dtype=self.dtype,
             kernel_init=nn.initializers.zeros,
         )(cls_token)

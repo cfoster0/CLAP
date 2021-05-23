@@ -5,6 +5,7 @@ from flax import linen as nn
 from jax import numpy as jnp
 
 from . import TalkingHeadsBlock
+from .. import RotaryPositionalEmbedding
 
 
 class AttentionBlock(nn.Module):
@@ -12,6 +13,8 @@ class AttentionBlock(nn.Module):
     head_ch: Optional[int] = None
     out_ch: Optional[int] = None
     talking_heads: bool = False
+    rotary_qk: bool = False
+    rotary_v: bool = False
     attn_dropout_rate: float = 0.
     out_dropout_rate: float = 0.
     use_bias: bool = False
@@ -35,6 +38,12 @@ class AttentionBlock(nn.Module):
         query = dense(name='queries')(inputs_q)
         key = dense(name='keys')(inputs_kv)
         value = dense(name='values')(inputs_kv)
+
+        if self.rotary_qk:
+            query = RotaryPositionalEmbedding()(query)
+            key = RotaryPositionalEmbedding()(key)
+        if self.rotary_v:
+            value = RotaryPositionalEmbedding()(value)
 
         query = query / jnp.sqrt(head_ch)
 

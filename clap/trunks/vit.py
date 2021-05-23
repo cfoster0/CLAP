@@ -12,6 +12,8 @@ class EncoderBlock(nn.Module):
     attn_dropout_rate: float = 0.
     dropout_rate: float = 0.
     activation_fn: Callable = nn.activation.gelu
+    rotary_qk: bool = False
+    rotary_v: bool = False
     dtype: jnp.dtype = jnp.float32
 
     @nn.compact
@@ -20,6 +22,8 @@ class EncoderBlock(nn.Module):
         x = SelfAttentionBlock(num_heads=self.num_heads,
                                attn_dropout_rate=self.attn_dropout_rate,
                                out_dropout_rate=self.dropout_rate,
+                               rotary_qk=self.rotary_qk,
+                               rotary_v=self.rotary_v,
                                dtype=self.dtype)(x, is_training=is_training)
         x = x + inputs
 
@@ -39,11 +43,16 @@ class Encoder(nn.Module):
     attn_dropout_rate: float = 0.
     dropout_rate: float = 0.
     activation_fn: Callable = nn.activation.gelu
+    rotary_qk: bool = False
+    rotary_v: bool = False
     dtype: jnp.dtype = jnp.float32
 
     @nn.compact
     def __call__(self, inputs, is_training: bool):
-        x = AddAbsPosEmbed()(inputs)
+        if not self.rotary_qk and not self.rotary_v:
+            x = AddAbsPosEmbed()(inputs)
+        else:
+            x = inputs
         x = nn.Dropout(rate=self.dropout_rate)(x, deterministic=not is_training)
 
         for _ in range(self.num_layers):
@@ -52,6 +61,8 @@ class Encoder(nn.Module):
                              attn_dropout_rate=self.attn_dropout_rate,
                              dropout_rate=self.dropout_rate,
                              activation_fn=self.activation_fn,
+                             rotary_qk=self.rotary_qk,
+                             rotary_v=self.rotary_v,
                              dtype=self.dtype)(x, is_training=is_training)
 
         output = nn.LayerNorm(dtype=self.dtype)(x)
@@ -59,7 +70,7 @@ class Encoder(nn.Module):
 
 
 class ViT(nn.Module):
-    num_classes: int
+    output_dim: int
     num_layers: int
     num_heads: int
     embed_dim: int
@@ -68,6 +79,8 @@ class ViT(nn.Module):
     attn_dropout_rate: float = 0.
     dropout_rate: float = 0.
     activation_fn: Callable = nn.activation.gelu
+    rotary_qk: bool = False
+    rotary_v: bool = False
     dtype: jnp.dtype = jnp.float32
 
     @nn.compact
@@ -90,10 +103,12 @@ class ViT(nn.Module):
                     attn_dropout_rate=self.attn_dropout_rate,
                     dropout_rate=self.dropout_rate,
                     activation_fn=self.activation_fn,
+                    rotary_qk=self.rotary_qk,
+                    rotary_v=self.rotary_v,
                     dtype=self.dtype)(x, is_training=is_training)
 
         cls_token = x[:, 0]
-        output = nn.Dense(features=self.num_classes,
+        output = nn.Dense(features=self.output_dim,
                           dtype=self.dtype,
                           kernel_init=nn.initializers.zeros)(cls_token)
         return output
