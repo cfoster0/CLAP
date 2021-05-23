@@ -141,7 +141,11 @@ def pair_text_spectrogram_dataset_collate_fn(batch):
         audio_len = audio.shape[0]
         text_len = text.shape[0]
         audio_pad_len = max_audio_len - audio_len
+        if audio_pad_len < 0:
+            raise ValueError("Audio clip too long")
         text_pad_len = max_text_len - text_len
+        if text_pad_len < 0:
+            raise ValueError("Text caption too long")
 
         if audio_pad_len > 0:
             audio = F.pad(audio, (0, 0, audio_pad_len, 0), value=0.0)
