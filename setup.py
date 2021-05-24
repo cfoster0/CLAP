@@ -20,7 +20,7 @@ setup(
         "click-option-group",
         "einops>=0.3",
         "flax",
-        "hydra",
+        "hydra-core",
         "jax",
         "jaxlib",
         "lm_dataformat",
