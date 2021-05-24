@@ -3,32 +3,45 @@ from click_option_group import optgroup
 
 import jax
 from jax import random, numpy as np, value_and_grad, jit, tree_util
-from optax import chain, clip_by_global_norm, scale_by_adam, scale, apply_updates, add_decayed_weights, masked
+from optax import (
+    chain,
+    clip_by_global_norm,
+    scale_by_adam,
+    scale,
+    apply_updates,
+    add_decayed_weights,
+    masked,
+)
 
 from clap.models import CLAP
 
 # data
 
 from torch.utils.data import DataLoader
-from clap.datasets import pair_text_spectrogram_dataset_collate_fn, PairTextSpectrogramDataset
+from clap.datasets import (
+    pair_text_spectrogram_dataset_collate_fn,
+    PairTextSpectrogramDataset,
+)
+
 
 @click.command()
-@optgroup.group('Model settings')
-@optgroup.option('--text_vocab', default = 256, type = int)
-@optgroup.option('--text_dim', default = 512, type = int)
-@optgroup.option('--text_depth', default = 1, type = int)
-@optgroup.option('--text_heads', default = 8, type = int)
-@optgroup.option('--audio_dim', default = 512, type = int)
-@optgroup.option('--audio_depth', default = 1, type = int)
-@optgroup.option('--audio_heads', default = 8, type = int)
-@optgroup.group('Training settings')
-@optgroup.option('--data_folder', default = './data', type = str)
-@optgroup.option('--batch_size', default = 16, type = int)
-@optgroup.option('--epochs', default = 100, type = int)
-@optgroup.option('--learning_rate', default = 3e-4, type = float)
-@optgroup.option('--weight_decay', default = 1e-1, type = float)
-@optgroup.option('--seed', default = 0, type = int)
-@optgroup.option('--max_norm', default = 0.5, type = float)
+@optgroup.group("Model settings")
+@optgroup.option("--text_vocab", default=256, type=int)
+@optgroup.option("--text_dim", default=768, type=int)
+@optgroup.option("--text_depth", default=1, type=int)
+@optgroup.option("--text_heads", default=8, type=int)
+@optgroup.option("--audio_dim", default=512, type=int)
+@optgroup.option("--audio_depth", default=1, type=int)
+@optgroup.option("--audio_heads", default=8, type=int)
+@optgroup.option("--projection_dim", default=512, type=int)
+@optgroup.group("Training settings")
+@optgroup.option("--data_folder", default="./data", type=str)
+@optgroup.option("--batch_size", default=16, type=int)
+@optgroup.option("--epochs", default=100, type=int)
+@optgroup.option("--learning_rate", default=3e-4, type=float)
+@optgroup.option("--weight_decay", default=1e-1, type=float)
+@optgroup.option("--seed", default=0, type=int)
+@optgroup.option("--max_norm", default=0.5, type=float)
 def train(
     *,
     data_folder,
@@ -44,7 +57,8 @@ def train(
     text_heads,
     audio_dim,
     audio_depth,
-    audio_heads
+    audio_heads,
+    projection_dim,
 ):
     # rng
 
@@ -53,18 +67,25 @@ def train(
     # data
 
     dataset = PairTextSpectrogramDataset(data_folder)
-    dl = DataLoader(dataset, batch_size = batch_size, collate_fn = pair_text_spectrogram_dataset_collate_fn, drop_last = True, shuffle = True)
+    dl = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        collate_fn=pair_text_spectrogram_dataset_collate_fn,
+        drop_last=True,
+        shuffle=True,
+    )
 
-    # model 
+    # model
 
     model = CLAP(
-        text_vocab = text_vocab,
-        text_dim = text_dim,
-        text_depth = text_depth,
-        text_heads = text_heads,
-        audio_dim = audio_dim,
-        audio_depth = audio_depth,
-        audio_heads = audio_heads
+        text_vocab=text_vocab,
+        text_dim=text_dim,
+        text_depth=text_depth,
+        text_heads=text_heads,
+        audio_dim=audio_dim,
+        audio_depth=audio_depth,
+        audio_heads=audio_heads,
+        projection_dim=projection_dim,
     )
 
     # optimizer
@@ -75,7 +96,7 @@ def train(
         clip_by_global_norm(max_norm),
         scale_by_adam(eps=1e-4),
         add_decayed_weights(weight_decay, exclude_bias),
-        scale(-learning_rate)
+        scale(-learning_rate),
     )
 
     # init
@@ -90,7 +111,15 @@ def train(
     @jit
     @value_and_grad
     def loss_fn(params, text, audio, text_mask, audio_mask):
-        return model.apply(params, text, audio, text_mask, audio_mask)
+        return model.apply(
+            params,
+            text,
+            audio,
+            text_mask,
+            audio_mask,
+            return_loss=True,
+            is_training=True,
+        )
 
     # train loop
 
@@ -99,9 +128,10 @@ def train(
             loss, grads = loss_fn(params, text, audio, text_mask, audio_mask)
             updates, optim_state = optim.update(grads, optim_state, params)
             params = apply_updates(params, updates)
-            print(f'loss: {loss}')
+            print(f"loss: {loss}")
 
     # finished
+
 
 if __name__ == "__main__":
     train()
