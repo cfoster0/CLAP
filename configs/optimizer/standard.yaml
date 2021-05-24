@@ -1,0 +1,4 @@
+# @package _group_
+learning_rate: 0.0003
+weight_decay: 0.1
+max_norm: 0.5

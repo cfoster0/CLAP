@@ -1,5 +1,5 @@
-import click
-from click_option_group import optgroup
+from omegaconf import DictConfig, OmegaConf
+import hydra
 
 import jax
 from jax import random, numpy as np, value_and_grad, jit, tree_util
@@ -24,52 +24,24 @@ from clap.datasets import (
 )
 
 
-@click.command()
-@optgroup.group("Model settings")
-@optgroup.option("--text_vocab", default=256, type=int)
-@optgroup.option("--text_dim", default=768, type=int)
-@optgroup.option("--text_depth", default=1, type=int)
-@optgroup.option("--text_heads", default=8, type=int)
-@optgroup.option("--audio_dim", default=512, type=int)
-@optgroup.option("--audio_depth", default=1, type=int)
-@optgroup.option("--audio_heads", default=8, type=int)
-@optgroup.option("--projection_dim", default=512, type=int)
-@optgroup.group("Training settings")
-@optgroup.option("--data_folder", default="./data", type=str)
-@optgroup.option("--batch_size", default=16, type=int)
-@optgroup.option("--epochs", default=100, type=int)
-@optgroup.option("--learning_rate", default=3e-4, type=float)
-@optgroup.option("--weight_decay", default=1e-1, type=float)
-@optgroup.option("--seed", default=0, type=int)
-@optgroup.option("--max_norm", default=0.5, type=float)
+@hydra.main(config_path="configs")
 def train(
-    *,
-    data_folder,
-    batch_size,
-    epochs,
-    learning_rate,
-    weight_decay,
-    seed,
-    max_norm,
-    text_vocab,
-    text_dim,
-    text_depth,
-    text_heads,
-    audio_dim,
-    audio_depth,
-    audio_heads,
-    projection_dim,
-):
+    cfg: DictConfig
+) -> None:
+
+    print(OmegaConf.to_yaml(cfg))
+
     # rng
 
-    rng_key = random.PRNGKey(seed)
+    rng_key = random.PRNGKey(cfg.training.seed)
 
     # data
-
-    dataset = PairTextSpectrogramDataset(data_folder)
+    
+    training_data_path = hydra.utils.get_original_cwd() + '/' + cfg.training.data_folder
+    dataset = PairTextSpectrogramDataset(training_data_path)
     dl = DataLoader(
         dataset,
-        batch_size=batch_size,
+        batch_size=cfg.training.batch_size,
         collate_fn=pair_text_spectrogram_dataset_collate_fn,
         drop_last=True,
         shuffle=True,
@@ -78,14 +50,8 @@ def train(
     # model
 
     model = CLAP(
-        text_vocab=text_vocab,
-        text_dim=text_dim,
-        text_depth=text_depth,
-        text_heads=text_heads,
-        audio_dim=audio_dim,
-        audio_depth=audio_depth,
-        audio_heads=audio_heads,
-        projection_dim=projection_dim,
+        text_config=cfg.model.text,
+        audio_config=cfg.model.audio,
     )
 
     # optimizer
@@ -93,10 +59,10 @@ def train(
     exclude_bias = lambda params: tree_util.tree_map(lambda x: x.ndim != 1, params)
 
     optim = chain(
-        clip_by_global_norm(max_norm),
+        clip_by_global_norm(cfg.optimizer.max_norm),
         scale_by_adam(eps=1e-4),
-        add_decayed_weights(weight_decay, exclude_bias),
-        scale(-learning_rate),
+        add_decayed_weights(cfg.optimizer.weight_decay, exclude_bias),
+        scale(-cfg.optimizer.learning_rate),
     )
 
     # init
@@ -123,7 +89,7 @@ def train(
 
     # train loop
 
-    for _ in range(epochs):
+    for _ in range(cfg.training.epochs):
         for audio, audio_mask, text, text_mask in dl:
             loss, grads = loss_fn(params, text, audio, text_mask, audio_mask)
             updates, optim_state = optim.update(grads, optim_state, params)

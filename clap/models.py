@@ -2,7 +2,7 @@ import jax
 from typing import Any, Callable, Sequence, Optional
 from jax import lax, random, numpy as jnp, vmap, jit
 from jax.ops import index, index_update
-from .trunks import create_trunk
+from .trunks import Transformer, ViT, TNT, CaiT, MLPMixer
 
 # einsum and einops
 
@@ -39,26 +39,70 @@ def cross_entropy(logits, targets, axis=-1):
 
 
 class CLAP(nn.Module):
-    text_vocab: int
-    text_dim: int
-    text_depth: int
-    text_heads: int
-
-    audio_dim: int
-    audio_depth: int
-    audio_heads: int
-
-    projection_dim: int
+    text_config: Any
+    
+    audio_config: Any
 
     temp_init: Callable = nn.initializers.zeros
 
     def setup(self):
-        self.audio_encoder = create_trunk("spec_b", output_dim=self.projection_dim)
+        if self.text_config.kind == 'transformer':
+            self.text_encoder = Transformer(
+                                    output_dim=self.text_config.projection_dim,
+                                    num_layers=self.text_config.depth,
+                                    num_heads=self.text_config.heads,
+                                    embed_dim=self.text_config.dim,
+                                    rotary_qk=self.text_config.rotary_qk,
+                                    dtype=jnp.float32,
+                                )
+        else:
+            raise NotImplementedError("Only plain transformer encoders are currently supported for the text trunk.")
 
-        self.text_encoder = create_trunk("txt_b", output_dim=self.projection_dim)
+        if self.audio_config.kind == 'vit':
+            self.audio_encoder = ViT(
+                output_dim=self.audio_config.projection_dim,
+                num_layers=self.audio_config.depth,
+                num_heads=self.audio_config.heads,
+                embed_dim=self.audio_config.dim,
+                patch_shape=tuple(self.audio_config.patch_shape),
+                rotary_qk=self.audio_config.rotary_qk,
+            )
+        elif self.audio_config.kind == 'tnt':
+            self.audio_encoder = TNT(
+                output_dim=self.audio_config.projection_dim,
+                num_layers=self.audio_config.depth,
+                inner_num_heads=self.audio_config.inner.heads,
+                outer_num_heads=self.audio_config.outer.heads,
+                inner_embed_dim=self.audio_config.inner.dim,
+                outer_embed_dim=self.audio_config.outer.dim,
+                patch_shape=tuple(self.audio_config.outer.patch_shape),
+                transformed_patch_shape=tuple(self.audio_config.inner.patch_shape),
+                rotary_qk=self.audio_config.rotary_qk,
+            )
+        elif self.audio_config.kind == 'cait':
+            self.audio_encoder = CaiT(
+                output_dim=self.audio_config.projection_dim,
+                num_layers=self.audio_config.depth,
+                num_layers_token_only=self.audio_config.token_only_depth,
+                num_heads=self.audio_config.heads,
+                embed_dim=self.audio_config.dim,
+                patch_shape=self.audio_config.patch_shape,
+                stoch_depth_rate=self.audio_config.stochastic_depth_rate,
+                layerscale_eps=self.audio_config.layerscale_eps,
+                rotary_qk=self.audio_config.rotary_qk,
+            )
+        elif self.audio_config.kind == 'mixer':
+            self.audio_encoder = MLPMixer(
+                output_dim=self.audio_config.projection_dim,
+                num_layers=self.audio_config.depth,
+                embed_dim=self.audio_config.dim,
+                patch_shape=self.audio_config.patch_shape,
+            )
+        else:
+            raise NotImplementedError("Only ViT, TNT, CaiT, and MLPMixer are supported audio trunks.")
 
         self.text_tokenizer = nn.Embed(
-            num_embeddings=self.text_vocab, features=self.text_dim
+            num_embeddings=self.text_config.vocab, features=self.text_config.dim
         )
 
         self.temp = self.param("temperature", self.temp_init, tuple())

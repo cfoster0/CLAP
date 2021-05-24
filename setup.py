@@ -16,8 +16,6 @@ setup(
         "audio",
     ],
     install_requires=[
-        "click",
-        "click-option-group",
         "einops>=0.3",
         "flax",
         "hydra-core",

@@ -1,0 +1,8 @@
+# @package _group_
+kind: 'mixer'
+depth: 8
+dim: 512
+patch_shape:
+  - 4
+  - 80
+projection_dim: 512
