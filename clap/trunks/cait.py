@@ -212,6 +212,6 @@ class CaiT(nn.Module):
             features=self.output_dim,
             use_bias=True,
             dtype=self.dtype,
-            kernel_init=nn.initializers.zeros,
+            kernel_init=nn.initializers.orthogonal(),
         )(cls_token)
         return output

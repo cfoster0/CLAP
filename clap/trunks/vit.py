@@ -119,6 +119,6 @@ class ViT(nn.Module):
         output = nn.Dense(
             features=self.output_dim,
             dtype=self.dtype,
-            kernel_init=nn.initializers.zeros,
+            kernel_init=nn.initializers.orthogonal(),
         )(cls_token)
         return output
