@@ -28,6 +28,15 @@ def create_trunk(
             transformed_patch_shape=(1, 80),
             rotary_qk=True,
         )
+    elif model_name == "spec_c":
+        return ViT(
+            output_dim=output_dim,
+            num_layers=12,
+            num_heads=12,
+            embed_dim=384,
+            patch_shape=(2, 80),
+            rotary_qk=True,
+        )
     elif model_name == "vit_b_patch32":
         return ViT(
             output_dim=output_dim,
