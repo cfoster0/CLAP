@@ -32,14 +32,29 @@ audio = random.uniform(key1, (2, 8, 512))
 text_mask = np.ones((2, 16), dtype = bool)
 audio_mask = np.ones((2, 8), dtype = bool)
 
+audio_config = {
+    'kind': 'vit', 
+    'depth': 8, 
+    'dim': 512, 
+    'heads': 8, 
+    'patch_shape': [4, 80], 
+    'projection_dim': 512, 
+    'rotary_qk': True,
+}
+
+text_config = {
+    'kind': 'transformer',
+    'depth': 8,
+    'dim': 512,
+    'heads': 8,
+    'vocab': 256,
+    'projection_dim': 512,
+    'rotary_qk': True,
+}
+
 model = CLAP(
-    text_vocab = 256,
-    text_dim = 512,
-    text_depth = 6,
-    text_heads = 8,
-    audio_dim = 512,
-    audio_depth = 6,
-    audio_heads = 8
+    text_config = text_config,
+    audio_config = audio_config,
 )
 
 params = model.init(key2, text, audio, text_mask, audio_mask)
