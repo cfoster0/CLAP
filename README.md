@@ -64,3 +64,9 @@ loss = model.apply(params, text, audio, text_mask, audio_mask)
 
 sim = model.apply(params, text, audio, text_mask, audio_mask, return_loss = False) # (2, 2)
 ```
+
+Use Hydra's config system to swap out model configurations
+
+```
+python train.py +model/audio=vit +model/text=transformer +optimizer=standard +training=standard
+```
