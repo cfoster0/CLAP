@@ -25,9 +25,7 @@ from clap.datasets import (
 
 
 @hydra.main(config_path="configs")
-def train(
-    cfg: DictConfig
-) -> None:
+def train(cfg: DictConfig) -> None:
 
     print(OmegaConf.to_yaml(cfg))
 
@@ -36,8 +34,8 @@ def train(
     rng_key = random.PRNGKey(cfg.training.seed)
 
     # data
-    
-    training_data_path = hydra.utils.get_original_cwd() + '/' + cfg.training.data_folder
+
+    training_data_path = hydra.utils.get_original_cwd() + "/" + cfg.training.data_folder
     dataset = PairTextSpectrogramDataset(training_data_path)
     dl = DataLoader(
         dataset,
