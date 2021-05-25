@@ -1,0 +1,5 @@
+# @package _group_
+data_folder: "./data"
+batch_size: 16
+epochs: 100
+seed: 0

@@ -1,0 +1,10 @@
+# @package _group_
+kind: 'vit'
+depth: 8
+dim: 512
+heads: 8
+patch_shape:
+  - 4
+  - 80
+projection_dim: 512
+rotary_qk: True

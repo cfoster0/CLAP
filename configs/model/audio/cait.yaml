@@ -1,0 +1,13 @@
+# @package _group_
+kind: 'cait'
+depth: 8
+token_only_depth: 2
+dim: 512
+heads: 8
+patch_shape:
+  - 4
+  - 80
+projection_dim: 512
+rotary_qk: True
+stochastic_depth_rate: 0.4
+layerscale_eps: 0.000001

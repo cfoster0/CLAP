@@ -1,0 +1,17 @@
+# @package _group_
+kind: 'tnt'
+depth: 8
+outer:
+  dim: 512
+  heads: 8
+  patch_shape:
+    - 4
+    - 80
+inner:
+  dim: 128
+  heads: 4
+  patch_shape:
+    - 1
+    - 80
+projection_dim: 512
+rotary_qk: True

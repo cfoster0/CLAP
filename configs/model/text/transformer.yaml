@@ -1,0 +1,8 @@
+# @package _group_
+kind: 'transformer'
+depth: 8
+dim: 512
+heads: 8
+vocab: 256
+projection_dim: 512
+rotary_qk: True
