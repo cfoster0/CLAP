@@ -32,16 +32,6 @@ audio = random.uniform(key1, (2, 8, 512))
 text_mask = np.ones((2, 16), dtype = bool)
 audio_mask = np.ones((2, 8), dtype = bool)
 
-audio_config = {
-    'kind': 'vit', 
-    'depth': 8, 
-    'dim': 512, 
-    'heads': 8, 
-    'patch_shape': [4, 80], 
-    'projection_dim': 512, 
-    'rotary_qk': True,
-}
-
 text_config = {
     'kind': 'transformer',
     'depth': 8,
@@ -49,6 +39,16 @@ text_config = {
     'heads': 8,
     'vocab': 256,
     'projection_dim': 512,
+    'rotary_qk': True,
+}
+
+audio_config = {
+    'kind': 'vit', 
+    'depth': 8, 
+    'dim': 512, 
+    'heads': 8, 
+    'patch_shape': [4, 80], 
+    'projection_dim': 512, 
     'rotary_qk': True,
 }
 
