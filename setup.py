@@ -23,6 +23,7 @@ setup(
         "jaxlib",
         "lm_dataformat",
         "optax",
+        "tensorflow",
         "torch",
         "torchaudio",
     ],
