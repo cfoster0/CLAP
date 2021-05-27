@@ -10,17 +10,6 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, TensorDataset, ConcatDataset, IterableDataset
 
 
-def to_tfrecords(spectrograms, captions, fname="data.tfrecord"):
-    tfrecord_writer = tf.io.TFRecordWriter(fname)
-    for (spectrogram, caption) in zip(spectrograms, captions):
-        example = tf.train.Example(features=tf.train.Features(feature={
-            'audio': tf.train.Feature(float_list=tf.train.FloatList(value=spectrogram.flatten())),
-            'text': tf.train.Feature(int64_list=tf.train.Int64List(value=[*caption.encode('utf-8')])),
-        }))
-        tfrecord_writer.write(example.SerializeToString())
-
-    tfrecord_writer.close()
-
 class PairTextSpectrogramTFRecords(object):
     def __init__(self, local_or_gcs_path, batch_size, prefetch_size=0, mel_bins=80, max_audio_len=2048, max_text_len=256):
         self.mel_bins = mel_bins
@@ -52,6 +41,18 @@ class PairTextSpectrogramTFRecords(object):
 
         features_tensor = tf.io.parse_single_example(record, tfrecord_format)
         return features_tensor
+
+    @staticmethod
+    def write(spectrograms, captions, fname="data.tfrecord"):
+        tfrecord_writer = tf.io.TFRecordWriter(fname)
+        for (spectrogram, caption) in zip(spectrograms, captions):
+            example = tf.train.Example(features=tf.train.Features(feature={
+                'audio': tf.train.Feature(float_list=tf.train.FloatList(value=spectrogram.flatten())),
+                'text': tf.train.Feature(int64_list=tf.train.Int64List(value=[*caption.encode('utf-8')])),
+            }))
+            tfrecord_writer.write(example.SerializeToString())
+
+        tfrecord_writer.close()
     
 
 class PairTextSpectrogramDataset(Dataset):

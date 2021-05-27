@@ -1,7 +1,6 @@
 import csv
-from clap.datasets import tokenize
+from clap.datasets import PairTextSpectrogramTFRecords
 
-import torch
 import torchaudio
 
 # constants
@@ -24,19 +23,16 @@ def tsv_to_dict(path):
 
 voice_clips = tsv_to_dict(f"{DATA_DIR}/{TSV_FILE_NAME}")
 
-for clip in voice_clips:
-    filename = clip["path"]
-    text = clip["sentence"]
-
+def extract_spectrogram(filename):
     waveform, sample_rate = torchaudio.load(f"{DATA_DIR}/clips/{filename}")
 
     output = torchaudio.transforms.MelSpectrogram(
         sample_rate, n_mels=NUM_MEL, f_min=0, f_max=8000
     )(waveform)[0]
-    tokenized = torch.tensor(
-        [int(byte) for i, byte in enumerate(text.encode("utf-8"))], dtype=torch.uint8
-    )
 
-    save_path = f"{DATA_DIR}/{filename}.pt"
+    return output.t().numpy()
 
-    torch.save({"audio": output.t(), "text": tokenized}, save_path)
+spectrograms = (extract_spectrogram(clip['path']) for clip in voice_clips)
+captions = (clip['sentence'] for clip in voice_clips)
+save_path = DATA_DIR + '/data.tfrecord'
+PairTextSpectrogramTFRecords.write(spectrograms, captions, fname=save_path)
