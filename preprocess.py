@@ -5,7 +5,6 @@ import torchaudio
 
 # constants
 
-MAX_TOKEN_LENGTH = 256
 DATA_DIR = "./data"
 NUM_MEL = 80
 TSV_FILE_NAME = "subset.tsv"
