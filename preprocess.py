@@ -1,14 +1,10 @@
 import csv
 from clap.datasets import PairTextSpectrogramTFRecords
+from omegaconf import DictConfig, OmegaConf
+import hydra
 
 import torchaudio
 
-# constants
-
-MAX_TOKEN_LENGTH = 256
-DATA_DIR = "./data"
-NUM_MEL = 80
-TSV_FILE_NAME = "subset.tsv"
 
 # helpers
 
@@ -21,18 +17,23 @@ def tsv_to_dict(path):
 
 # script
 
-voice_clips = tsv_to_dict(f"{DATA_DIR}/{TSV_FILE_NAME}")
+@hydra.main(config_path="preprocessing/configs")
+def train(cfg: DictConfig) -> None:
+    voice_clips = tsv_to_dict(f"{cfg.data_dir}/{cfg.tsv_filename}")
 
-def extract_spectrogram(filename):
-    waveform, sample_rate = torchaudio.load(f"{DATA_DIR}/clips/{filename}")
+    def extract_spectrogram(filename):
+        waveform, sample_rate = torchaudio.load(f"{cfg.data_dir}/clips/{filename}")
 
-    output = torchaudio.transforms.MelSpectrogram(
-        sample_rate, n_mels=NUM_MEL, f_min=0, f_max=8000
-    )(waveform)[0]
+        output = torchaudio.transforms.MelSpectrogram(
+            sample_rate, n_mels=cfg.mel_bins, f_min=0, f_max=8000
+        )(waveform)[0]
 
-    return output.t().numpy()
+        return output.t().numpy()
 
-spectrograms = (extract_spectrogram(clip['path']) for clip in voice_clips)
-captions = (clip['sentence'] for clip in voice_clips)
-save_path = DATA_DIR + '/data.tfrecord'
-PairTextSpectrogramTFRecords.write(spectrograms, captions, fname=save_path)
+    spectrograms = (extract_spectrogram(clip['path']) for clip in voice_clips)
+    captions = (clip['sentence'] for clip in voice_clips)
+    save_path = cfg.data_dir + '/data.tfrecord'
+    PairTextSpectrogramTFRecords.write(spectrograms, captions, fname=save_path)
+
+if __name__ == "__main__":
+    preprocess()

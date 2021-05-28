@@ -26,6 +26,7 @@ setup(
         "tensorflow",
         "torch",
         "torchaudio",
+        "tqdm",
     ],
     classifiers=[
         "Development Status :: 4 - Beta",

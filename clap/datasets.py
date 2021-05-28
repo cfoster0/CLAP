@@ -2,7 +2,7 @@ import glob
 import torch
 import tensorflow as tf
 from pathlib import Path
-
+from tqdm import tqdm
 from itertools import cycle, islice, chain
 from einops import rearrange
 
@@ -22,6 +22,7 @@ class PairTextSpectrogramTFRecords(object):
             'audio': (max_audio_len, mel_bins),
             'text': (max_text_len),
         })
+        dataset = dataset.map(self.unsqueeze_trailing)
         dataset = dataset.prefetch(prefetch_size)
         dataset = dataset.as_numpy_iterator()
         self.dataset = dataset
@@ -41,10 +42,14 @@ class PairTextSpectrogramTFRecords(object):
         features_tensor = tf.io.parse_single_example(record, tfrecord_format)
         return features_tensor
 
+    def unsqueeze_trailing(self, record):
+        tf.print(record)
+        return record
+
     @staticmethod
     def write(spectrograms, captions, fname="data.tfrecord"):
         tfrecord_writer = tf.io.TFRecordWriter(fname)
-        for (spectrogram, caption) in zip(spectrograms, captions):
+        for (spectrogram, caption) in tqdm(zip(spectrograms, captions)):
             example = tf.train.Example(features=tf.train.Features(feature={
                 'audio': tf.train.Feature(float_list=tf.train.FloatList(value=spectrogram.flatten())),
                 'text': tf.train.Feature(int64_list=tf.train.Int64List(value=[*caption.encode('utf-8')])),
