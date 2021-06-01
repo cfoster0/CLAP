@@ -94,4 +94,6 @@ python train.py +model/audio=vit +model/text=transformer +optimizer=standard +tr
 }
 ```
 
+Much of the code behind the various transformer configurations has been adapted from Niccolò Zanichelli's [repository of Flax vision transformer modules](https://github.com/NZ99/self-attention-experiments-vision).
+
 Citation block courtesy of MicPie's awesome parallel project ["Contrastive Language-Aminoacid Sequence Pretraining"](https://github.com/MicPie/clasp).
