@@ -1,0 +1,4 @@
+# @package _group_
+data_folder: "./data"
+tsv_filename: 'subset.tsv'
+mel_bins: 80

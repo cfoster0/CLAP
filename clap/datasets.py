@@ -22,7 +22,7 @@ class PairTextSpectrogramTFRecords(object):
             'audio': (max_audio_len, mel_bins),
             'text': (max_text_len),
         })
-        dataset = dataset.map(self.unsqueeze_trailing)
+        #dataset = dataset.map(self.unsqueeze_trailing)
         dataset = dataset.prefetch(prefetch_size)
         dataset = dataset.as_numpy_iterator()
         self.dataset = dataset
@@ -35,7 +35,7 @@ class PairTextSpectrogramTFRecords(object):
 
     def deserialize_tf_record(self, record):
         tfrecord_format = {
-            'spectrogram': tf.io.FixedLenSequenceFeature((self.mel_bins,), dtype=tf.float32, allow_missing=True),
+            'audio': tf.io.FixedLenSequenceFeature((self.mel_bins,), dtype=tf.float32, allow_missing=True),
             'text': tf.io.FixedLenSequenceFeature([], dtype=tf.int64, allow_missing=True),
         }
 
