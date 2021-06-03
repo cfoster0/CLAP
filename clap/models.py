@@ -119,9 +119,7 @@ class CLAP(nn.Module):
         enc_audio = self.audio_encoder(audio, is_training=is_training)
         return enc_audio
 
-    def __call__(
-        self, text, audio, return_loss=True, is_training=False
-    ):
+    def __call__(self, text, audio, return_loss=True, is_training=False):
         b = text.shape[0]
 
         to_text_tokens = self.text_tokenizer

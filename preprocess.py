@@ -17,9 +17,12 @@ def tsv_to_dict(path):
 
 # script
 
+
 @hydra.main(config_path="configs")
 def preprocess(cfg: DictConfig) -> None:
-    data_folder = hydra.utils.get_original_cwd() + "/" + cfg.preprocessing.dataset.data_folder
+    data_folder = (
+        hydra.utils.get_original_cwd() + "/" + cfg.preprocessing.dataset.data_folder
+    )
 
     voice_clips = tsv_to_dict(f"{data_folder}/{cfg.preprocessing.dataset.tsv_filename}")
 
@@ -32,10 +35,11 @@ def preprocess(cfg: DictConfig) -> None:
 
         return output.t().numpy()
 
-    spectrograms = (extract_spectrogram(clip['path']) for clip in voice_clips)
-    captions = (clip['sentence'] for clip in voice_clips)
-    save_path = data_folder + '/data.tfrecord'
+    spectrograms = (extract_spectrogram(clip["path"]) for clip in voice_clips)
+    captions = (clip["sentence"] for clip in voice_clips)
+    save_path = data_folder + "/data.tfrecord"
     PairTextSpectrogramTFRecords.write(spectrograms, captions, fname=save_path)
+
 
 if __name__ == "__main__":
     preprocess()

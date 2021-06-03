@@ -35,7 +35,7 @@ def train(cfg: DictConfig) -> None:
     dataloader = PairTextSpectrogramTFRecords(
         training_data_path,
         cfg.training.batch_size,
-        )
+    )
 
     # model
 
@@ -59,8 +59,8 @@ def train(cfg: DictConfig) -> None:
 
     batch = next(iter(dataloader))
 
-    text = batch['text']
-    audio = batch['audio']
+    text = batch["text"]
+    audio = batch["audio"]
 
     params = model.init(rng_key, text, audio)
     optim_state = optim.init(params)
@@ -82,8 +82,8 @@ def train(cfg: DictConfig) -> None:
 
     for _ in range(cfg.training.epochs):
         for batch in dataloader:
-            text = batch['text']
-            audio = batch['audio']
+            text = batch["text"]
+            audio = batch["audio"]
             loss, grads = loss_fn(params, text, audio)
             updates, optim_state = optim.update(grads, optim_state, params)
             params = apply_updates(params, updates)
