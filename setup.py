@@ -23,8 +23,10 @@ setup(
         "jaxlib",
         "lm_dataformat",
         "optax",
+        "tensorflow",
         "torch",
         "torchaudio",
+        "tqdm",
     ],
     classifiers=[
         "Development Status :: 4 - Beta",

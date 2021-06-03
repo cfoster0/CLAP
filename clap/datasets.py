@@ -1,179 +1,97 @@
 import glob
 import torch
+import tensorflow as tf
 from pathlib import Path
-
-import lm_dataformat as lmd
+from tqdm import tqdm
 from itertools import cycle, islice, chain
-from einops import rearrange
+from einops import rearrange, repeat
 
 import torch.nn.functional as F
-from torch.utils.data import Dataset, TensorDataset, ConcatDataset, IterableDataset
 
 
-class CaptionedAudioMetadataset(IterableDataset):
-    def __init__(self, path_pairs, lazy=False):
-        self.datasets = [
-            CaptionedAudioDataset(captions_path, spectrograms_path, lazy=lazy)
-            for (captions_path, spectrograms_path) in path_pairs
-        ]
-
-    def __iter__(self):
-        def roundrobin(datasets):
-            num_active = len(datasets)
-            nexts = cycle(iter(it).__next__ for it in datasets)
-            while num_active:
-                try:
-                    for next in nexts:
-                        yield next()
-                except StopIteration:
-                    # Remove the iterator we just exhausted from the cycle.
-                    num_active -= 1
-                    nexts = cycle(islice(nexts, num_active))
-
-        iterator = roundrobin(self.datasets)
-
-        return iterator
-
-
-class CaptionedAudioDataset(IterableDataset):
-    def __init__(self, captions_path, spectrograms_path, lazy=False):
-        self.lazy = lazy
-        if self.lazy:
-            # Warning: The lazy path does not check whether the cpation metadata
-            # links it to the spectrogram. It assumes that the specrogram data,
-            # read from the files from the path in sorted order, loaded in as
-            # tensors, follows the exact same ordering as the LMD-encoded captions.
-            self.captions = lmd.Reader(captions_path).stream_data(get_meta=False)
-            self.spectrograms = SpectrogramLazyDataset(spectrograms_path)
-        else:
-            self.captions = lmd.Reader(captions_path).stream_data(get_meta=True)
-            self.spectrograms = SpectrogramDataset(spectrograms_path)
-
-    def __iter__(self):
-        if self.lazy:
-            iterator = (
-                (tokenize(text), spectrogram)
-                for ((text, _), spectrogram) in zip(self.captions, self.spectrograms)
-            )
-        else:
-            iterator = (
-                (tokenize(text), self.spectrograms[meta["index"]])
-                for (text, meta) in self.captions
-            )
-        return iterator
-
-
-class SpectrogramDataset(Dataset):
-    def __init__(self, path):
-        self.shard_paths = sorted(glob.glob(f"{path}/*.pt"))
-        self.data = ConcatDataset(
-            [SpectrogramDatasetShard(shard_path) for shard_path in self.shard_paths]
-        )
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        return self.data[idx]
-
-
-class SpectrogramLazyDataset(IterableDataset):
-    def __init__(self, path):
-        self.shard_paths = sorted(glob.glob(f"{path}/*.pt"))
-
-    def __iter__(self):
-        def lazy_shard_loader():
-            for shard_path in self.shard_paths:
-                self.shard_data = SpectrogramDatasetShard(shard_path)
-                for example in self.shard_data:
-                    yield example
-
-        return lazy_shard_loader()
-
-
-class SpectrogramDatasetShard(Dataset):
-    def __init__(self, path):
-        self.dataset_shard = TensorDataset(torch.load(path))
-
-    def __len__(self):
-        # Layout is [examples, frames, channels]
-        return len(self.dataset_shard)
-
-    def __getitem__(self, idx):
-        return self.dataset_shard[idx]
-
-
-class PairTextSpectrogramDataset(Dataset):
-    def __init__(self, folder, max_audio_len=2048, max_text_len=256):
-        self.paths = [path for path in Path(folder).glob("*.pt")]
+class PairTextSpectrogramTFRecords(object):
+    def __init__(
+        self,
+        local_or_gcs_path,
+        batch_size,
+        prefetch_size=0,
+        mel_bins=80,
+        max_audio_len=2048,
+        max_text_len=256,
+    ):
+        self.mel_bins = mel_bins
+        self.max_audio_len = max_audio_len
+        self.max_text_len = max_text_len
+        self.path = local_or_gcs_path
+        self.batch_size = batch_size
+        self.prefetch_size = prefetch_size
+        self.mel_bins = mel_bins
         self.max_audio_len = max_audio_len
         self.max_text_len = max_text_len
 
-    def __len__(self):
-        return len(self.paths)
+    def files(self):
+        return self.files
 
-    def __getitem__(self, idx):
-        max_audio_len, max_text_len = self.max_audio_len, self.max_text_len
+    def __iter__(self):
+        files = tf.data.TFRecordDataset.list_files(
+            self.path + "/*.tfrecord", shuffle=False
+        )
+        dataset = tf.data.TFRecordDataset(files)
+        dataset = dataset.map(self.deserialize_tf_record)
+        dataset = dataset.padded_batch(
+            self.batch_size,
+            padded_shapes={
+                "audio": (self.max_audio_len, self.mel_bins),
+                "text": (self.max_text_len),
+            },
+        )
+        dataset = dataset.map(self.unsqueeze_trailing)
+        dataset = dataset.prefetch(self.prefetch_size)
+        dataset = dataset.as_numpy_iterator()
 
-        path = self.paths[idx]
-        data = torch.load(path)
+        return dataset
 
-        audio, text = data["audio"], data["text"]
-        audio = audio[:max_audio_len]
-        text = text[:max_text_len]
+    def deserialize_tf_record(self, record):
+        tfrecord_format = {
+            "audio": tf.io.FixedLenSequenceFeature(
+                (self.mel_bins,), dtype=tf.float32, allow_missing=True
+            ),
+            "text": tf.io.FixedLenSequenceFeature(
+                [], dtype=tf.int64, allow_missing=True
+            ),
+        }
 
-        audio_mask = torch.ones(audio.shape[:-1]).bool()
-        text_mask = torch.ones_like(text).bool()
+        features_tensor = tf.io.parse_single_example(record, tfrecord_format)
+        return features_tensor
 
-        return audio, audio_mask, text, text_mask
+    def unsqueeze_trailing(self, record):
+        record = {
+            "audio": repeat(record["audio"], "... -> ... ()"),
+            "text": record["text"],
+        }
+        return record
 
+    @staticmethod
+    def write(spectrograms, captions, fname="data.tfrecord"):
+        tfrecord_writer = tf.io.TFRecordWriter(fname)
+        for (spectrogram, caption) in tqdm(zip(spectrograms, captions)):
+            example = tf.train.Example(
+                features=tf.train.Features(
+                    feature={
+                        "audio": tf.train.Feature(
+                            float_list=tf.train.FloatList(value=spectrogram.flatten())
+                        ),
+                        "text": tf.train.Feature(
+                            int64_list=tf.train.Int64List(
+                                value=[*caption.encode("utf-8")]
+                            )
+                        ),
+                    }
+                )
+            )
+            tfrecord_writer.write(example.SerializeToString())
 
-def pair_text_spectrogram_dataset_collate_fn(batch):
-    audios = [el[0] for el in batch]
-    texts = [el[2] for el in batch]
-    # max_audio_len = max([audio.shape[0] for audio in audios]) # Should probably pad to a fixed length
-    max_audio_len = 2048
-    # max_text_len = max([text.shape[0] for text in texts]) # Should probably pad to a fixed length
-    max_text_len = 256
-
-    padded_batch = []
-    for audio, audio_mask, text, text_mask in batch:
-        audio_len = audio.shape[0]
-        text_len = text.shape[0]
-        audio_pad_len = max_audio_len - audio_len
-        if audio_pad_len < 0:
-            raise ValueError("Audio clip too long")
-        text_pad_len = max_text_len - text_len
-        if text_pad_len < 0:
-            raise ValueError("Text caption too long")
-
-        if audio_pad_len > 0:
-            audio = F.pad(audio, (0, 0, audio_pad_len, 0), value=0.0)
-            audio_mask = F.pad(audio_mask, (audio_pad_len, 0), value=False)
-
-        if text_pad_len > 0:
-            text = F.pad(text, (text_pad_len, 0), value=0.0)
-            text_mask = F.pad(text_mask, (text_pad_len, 0), value=False)
-
-        # Add trailing dimension of 1, since mono audio
-        audio = rearrange(audio, "t c -> t c ()")
-
-        padded_batch.append((audio, audio_mask, text, text_mask))
-
-    output = tuple(map(lambda t: torch.stack(t).numpy(), zip(*padded_batch)))
-    return output
-
-
-def tokenize(text, pad_to=256):
-    # Padding token is 0, the null byte
-    tokens = torch.zeros(pad_to, dtype=torch.uint8)
-    # Truncate to context window size on the right if need be
-    for i, byte in enumerate(text.encode("utf-8")):
-        if i < pad_to:
-            tokens[i] = int(byte)
-        else:
-            break
-    return torch.tensor(tokens)
+        tfrecord_writer.close()
 
 
 def roundrobin(*iterables):

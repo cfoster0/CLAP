@@ -111,27 +111,23 @@ class CLAP(nn.Module):
 
         self.temp = self.param("temperature", self.temp_init, tuple())
 
-    def encode_text(self, text, mask, is_training):
-        # Ignore mask, for now.
+    def encode_text(self, text, is_training):
         enc_text = self.text_encoder(text, is_training=is_training)
         return enc_text
 
-    def encode_audio(self, audio, mask, is_training):
-        # Ignore mask, for now.
+    def encode_audio(self, audio, is_training):
         enc_audio = self.audio_encoder(audio, is_training=is_training)
         return enc_audio
 
-    def __call__(
-        self, text, audio, text_mask, audio_mask, return_loss=True, is_training=False
-    ):
+    def __call__(self, text, audio, return_loss=True, is_training=False):
         b = text.shape[0]
 
         to_text_tokens = self.text_tokenizer
 
         text = to_text_tokens(text)
 
-        enc_text = self.encode_text(text, text_mask, is_training)
-        enc_audio = self.encode_audio(audio, audio_mask, is_training)
+        enc_text = self.encode_text(text, is_training)
+        enc_audio = self.encode_audio(audio, is_training)
 
         enc_text = enc_text / jnp.linalg.norm(enc_text, axis=-1, keepdims=True)
         enc_audio = enc_audio / jnp.linalg.norm(enc_audio, axis=-1, keepdims=True)
