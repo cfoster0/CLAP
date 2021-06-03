@@ -27,10 +27,7 @@ from clap.models import CLAP
 key1, key2 = random.split(random.PRNGKey(0), 2)
 
 text = random.randint(key1, (2, 16,), 0, 256)
-audio = random.uniform(key1, (2, 8, 512))
-
-text_mask = np.ones((2, 16), dtype = bool)
-audio_mask = np.ones((2, 8), dtype = bool)
+audio = random.uniform(key1, (2, 1024, 80))
 
 text_config = {
     'kind': 'transformer',
@@ -57,17 +54,18 @@ model = CLAP(
     audio_config = audio_config,
 )
 
-params = model.init(key2, text, audio, text_mask, audio_mask)
-loss = model.apply(params, text, audio, text_mask, audio_mask)
+params = model.init(key2, text, audio)
+loss = model.apply(params, text, audio)
 
 # after a lot of training
 
-sim = model.apply(params, text, audio, text_mask, audio_mask, return_loss = False) # (2, 2)
+sim = model.apply(params, text, audio, return_loss = False) # (2, 2)
 ```
 
-Use Hydra's config system to swap out model configurations
+Use Hydra's config system to swap out dataset and model configurations
 
 ```
+python preprocess.py +preprocessing/dataset=commonvoice
 python train.py +model/audio=vit +model/text=transformer +optimizer=standard +training=standard
 ```
 
