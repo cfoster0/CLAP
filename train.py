@@ -13,8 +13,6 @@ from optax import (
     masked,
 )
 
-from einops import rearrange, repeat
-
 from clap.models import CLAP
 
 # data
@@ -34,7 +32,7 @@ def train(cfg: DictConfig) -> None:
     # data
 
     training_data_path = hydra.utils.get_original_cwd() + "/" + cfg.training.data_folder
-    dl = PairTextSpectrogramTFRecords(
+    dataloader = PairTextSpectrogramTFRecords(
         training_data_path,
         cfg.training.batch_size,
         )
@@ -59,17 +57,17 @@ def train(cfg: DictConfig) -> None:
 
     # init
 
-    batch = next(iter(dl))
+    batch = next(iter(dataloader))
 
     text = batch['text']
-    audio = repeat(batch['audio'], "... -> ... ()")
+    audio = batch['audio']
 
     params = model.init(rng_key, text, audio)
     optim_state = optim.init(params)
 
     # loss function, for use with value_and_grad
 
-    #@jit
+    @jit
     @value_and_grad
     def loss_fn(params, text, audio):
         return model.apply(
@@ -83,9 +81,9 @@ def train(cfg: DictConfig) -> None:
     # train loop
 
     for _ in range(cfg.training.epochs):
-        for batch in dl:
+        for batch in dataloader:
             text = batch['text']
-            audio = repeat(batch['audio'], "... -> ... ()")
+            audio = batch['audio']
             loss, grads = loss_fn(params, text, audio)
             updates, optim_state = optim.update(grads, optim_state, params)
             params = apply_updates(params, updates)

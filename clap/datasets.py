@@ -4,7 +4,7 @@ import tensorflow as tf
 from pathlib import Path
 from tqdm import tqdm
 from itertools import cycle, islice, chain
-from einops import rearrange
+from einops import rearrange, repeat
 
 import torch.nn.functional as F
 
@@ -14,24 +14,29 @@ class PairTextSpectrogramTFRecords(object):
         self.mel_bins = mel_bins
         self.max_audio_len = max_audio_len
         self.max_text_len = max_text_len
-
-        files = tf.data.TFRecordDataset.list_files(local_or_gcs_path + '/*.tfrecord', shuffle=False)
-        dataset = tf.data.TFRecordDataset(files)
-        dataset = dataset.map(self.deserialize_tf_record)
-        dataset = dataset.padded_batch(batch_size, padded_shapes={
-            'audio': (max_audio_len, mel_bins),
-            'text': (max_text_len),
-        })
-        #dataset = dataset.map(self.unsqueeze_trailing)
-        dataset = dataset.prefetch(prefetch_size)
-        dataset = dataset.as_numpy_iterator()
-        self.dataset = dataset
+        self.path = local_or_gcs_path
+        self.batch_size = batch_size
+        self.prefetch_size = prefetch_size
+        self.mel_bins = mel_bins
+        self.max_audio_len = max_audio_len
+        self.max_text_len = max_text_len
 
     def files(self):
         return self.files
     
     def __iter__(self):
-        return self.dataset
+        files = tf.data.TFRecordDataset.list_files(self.path + '/*.tfrecord', shuffle=False)
+        dataset = tf.data.TFRecordDataset(files)
+        dataset = dataset.map(self.deserialize_tf_record)
+        dataset = dataset.padded_batch(self.batch_size, padded_shapes={
+            'audio': (self.max_audio_len, self.mel_bins),
+            'text': (self.max_text_len),
+        })
+        dataset = dataset.map(self.unsqueeze_trailing)
+        dataset = dataset.prefetch(self.prefetch_size)
+        dataset = dataset.as_numpy_iterator()
+
+        return dataset
 
     def deserialize_tf_record(self, record):
         tfrecord_format = {
@@ -43,7 +48,10 @@ class PairTextSpectrogramTFRecords(object):
         return features_tensor
 
     def unsqueeze_trailing(self, record):
-        tf.print(record)
+        record = {
+            'audio': repeat(record['audio'], "... -> ... ()"),
+            'text': record['text'],
+        }
         return record
 
     @staticmethod
